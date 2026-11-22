@@ -1,0 +1,92 @@
+{
+  "version": "2.0.0",
+  "tasks": [
+    {
+      "label": "Android: Build Debug APK",
+      "type": "shell",
+      "command": ".\\gradlew.bat",
+      "args": [
+        "assembleDebug"
+      ],
+      "options": {
+        "cwd": "${workspaceFolder}/android-app"
+      },
+      "group": {
+        "kind": "build",
+        "isDefault": true
+      },
+      "problemMatcher": [
+        "$gradle"
+      ]
+    },
+    {
+      "label": "Android: Run Unit Tests",
+      "type": "shell",
+      "command": ".\\gradlew.bat",
+      "args": [
+        "test"
+      ],
+      "options": {
+        "cwd": "${workspaceFolder}/android-app"
+      },
+      "group": "test",
+      "problemMatcher": [
+        "$gradle"
+      ]
+    },
+    {
+      "label": "Android: Clean",
+      "type": "shell",
+      "command": ".\\gradlew.bat",
+      "args": [
+        "clean"
+      ],
+      "options": {
+        "cwd": "${workspaceFolder}/android-app"
+      },
+      "problemMatcher": [
+        "$gradle"
+      ]
+    },
+    {
+      "label": "Dashboard: Install Dependencies",
+      "type": "shell",
+      "command": "npm",
+      "args": [
+        "install"
+      ],
+      "options": {
+        "cwd": "${workspaceFolder}/rescue-dashboard"
+      },
+      "problemMatcher": []
+    },
+    {
+      "label": "Dashboard: Start Dev Server",
+      "type": "shell",
+      "command": "npm",
+      "args": [
+        "run",
+        "dev"
+      ],
+      "options": {
+        "cwd": "${workspaceFolder}/rescue-dashboard"
+      },
+      "isBackground": true,
+      "problemMatcher": []
+    },
+    {
+      "label": "Dashboard: Build Production",
+      "type": "shell",
+      "command": "npm",
+      "args": [
+        "run",
+        "build"
+      ],
+      "options": {
+        "cwd": "${workspaceFolder}/rescue-dashboard"
+      },
+      "group": "build",
+      "problemMatcher": []
+    }
+  ]
+}

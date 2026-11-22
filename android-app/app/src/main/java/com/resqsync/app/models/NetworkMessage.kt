@@ -1,11 +1,13 @@
-
 package com.resqsync.app.models
 
+import kotlinx.serialization.Serializable
+
+@Serializable
 data class NetworkMessage(
     val messageId: String,
     val reportId: String,
     val senderDeviceId: String,
-    val destinationId: String?,
+    val destinationId: String? = null,
     val createdAt: Long,
     val hopCount: Int,
     val maxHops: Int,

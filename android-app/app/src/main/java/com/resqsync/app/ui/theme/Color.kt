@@ -2,10 +2,17 @@ package com.resqsync.app.ui.theme
 
 import androidx.compose.ui.graphics.Color
 
-val Purple80 = Color(0xFFD0BCFF)
-val PurpleGrey80 = Color(0xFFCCC2DC)
-val Pink80 = Color(0xFFEFB8C8)
+val ResQSyncDarkNavy = Color(0xFF071827)
+val ResQSyncNavySurface = Color(0xFF102D46)
+val ResQSyncNavyCard = Color(0xFF1B3B5A)
 
-val Purple40 = Color(0xFF6650a4)
-val PurpleGrey40 = Color(0xFF625b71)
-val Pink40 = Color(0xFF7D5260)
+val ResQSyncCyan = Color(0xFF00C5D2)
+val ResQSyncCyanLight = Color(0xFF4DD0E1)
+
+val ResQSyncEmergencyRed = Color(0xFFB42318)
+val ResQSyncRedContainer = Color(0xFF4A1015)
+
+val ResQSyncTextPrimary = Color(0xFFF8FAFC)
+val ResQSyncTextSecondary = Color(0xFF94A3B8)
+val ResQSyncSuccessGreen = Color(0xFF12B76A)
+val ResQSyncWarningOrange = Color(0xFFF79009)

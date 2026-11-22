@@ -1,8 +1,9 @@
 plugins {
     alias(libs.plugins.android.application)
     alias(libs.plugins.kotlin.compose)
+    alias(libs.plugins.kotlin.serialization)
+    alias(libs.plugins.ksp)
 }
-
 android {
     namespace = "com.resqsync.app"
     compileSdk {
@@ -37,6 +38,16 @@ android {
 }
 
 dependencies {
+    // Room Database
+    implementation(libs.compose.runtime)
+    implementation(libs.androidx.room.runtime)
+    implementation(libs.androidx.room.ktx)
+
+// Room compiler using KSP
+
+    ksp(libs.androidx.room.compiler)
+    implementation(libs.play.services.nearby)
+    implementation(libs.kotlinx.serialization.json)
     implementation(platform(libs.androidx.compose.bom))
     implementation(libs.androidx.activity.compose)
     implementation(libs.androidx.compose.material3)
