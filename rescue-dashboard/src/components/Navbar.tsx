@@ -1,5 +1,5 @@
 import React from 'react';
-import { Menu, PlusCircle, LogOut, Radio } from 'lucide-react';
+import { Menu, RefreshCw, LogOut, Radio } from 'lucide-react';
 import { useAuth } from '../context/AuthContext';
 import { useIncidents } from '../context/IncidentContext';
 
@@ -9,7 +9,7 @@ interface NavbarProps {
 
 export const Navbar: React.FC<NavbarProps> = ({ onOpenMobileMenu }) => {
   const { user, logout } = useAuth();
-  const { reports, addSimulatedIncident } = useIncidents();
+  const { reports, refetchReports, isLoadingReports } = useIncidents();
 
   const criticalCount = reports.filter((r) => r.urgency === 'CRITICAL' && r.status !== 'RESOLVED').length;
   const activeCount = reports.filter((r) => r.status !== 'RESOLVED').length;
@@ -50,14 +50,15 @@ export const Navbar: React.FC<NavbarProps> = ({ onOpenMobileMenu }) => {
           </div>
         </div>
 
-        {/* Trigger Simulation Beacon Button */}
+        {/* Live Refresh Button */}
         <button
-          onClick={addSimulatedIncident}
-          className="flex items-center gap-1.5 px-3 py-1.5 rounded-lg bg-cyan/10 hover:bg-cyan/20 border border-cyan/40 text-cyan text-xs font-semibold transition-colors"
-          title="Simulate receiving an offline mesh emergency packet"
+          onClick={() => refetchReports()}
+          disabled={isLoadingReports}
+          className="flex items-center gap-1.5 px-3 py-1.5 rounded-lg bg-cyan/10 hover:bg-cyan/20 border border-cyan/40 text-cyan text-xs font-semibold transition-colors disabled:opacity-50"
+          title="Sync live records from Supabase"
         >
-          <PlusCircle className="w-3.5 h-3.5" />
-          <span className="hidden md:inline">+ Test Beacon</span>
+          <RefreshCw className={`w-3.5 h-3.5 ${isLoadingReports ? 'animate-spin' : ''}`} />
+          <span className="hidden md:inline">Live Sync</span>
         </button>
       </div>
 

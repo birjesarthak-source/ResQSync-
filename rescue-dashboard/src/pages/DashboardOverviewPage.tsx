@@ -108,45 +108,54 @@ export const DashboardOverviewPage: React.FC = () => {
             </div>
 
             <div className="divide-y divide-navy-800">
-              {activeIncidents.slice(0, 4).map((report) => (
-                <div
-                  key={report.reportId}
-                  className="p-4 hover:bg-navy-800/40 transition-colors flex flex-col sm:flex-row sm:items-center justify-between gap-4"
-                >
-                  <div className="space-y-1.5 flex-1">
-                    <div className="flex flex-wrap items-center gap-2">
-                      <span className="text-sm font-bold text-white">
-                        {getIncidentTypeLabel(report.incidentType)}
-                      </span>
-                      <UrgencyBadge urgency={report.urgency} />
-                      <StatusBadge status={report.status} />
-                    </div>
-
-                    <p className="text-xs text-slate-300 line-clamp-2 leading-relaxed">
-                      {report.description}
-                    </p>
-
-                    <div className="flex flex-wrap items-center gap-4 text-[11px] text-slate-400 font-mono pt-1">
-                      <span className="flex items-center gap-1">
-                        <Users className="w-3 h-3 text-red-400" />
-                        {report.peopleAffected} trapped
-                      </span>
-                      <span className="flex items-center gap-1">
-                        <MapPin className="w-3 h-3 text-cyan" />
-                        {report.latitude.toFixed(3)}, {report.longitude.toFixed(3)}
-                      </span>
-                      <span>{formatDate(report.createdAt)}</span>
-                    </div>
-                  </div>
-
-                  <button
-                    onClick={() => setModalReport(report)}
-                    className="px-3 py-1.5 rounded-lg bg-navy-800 hover:bg-navy-700 border border-navy-600 text-xs font-semibold text-cyan hover:text-cyan-glow shrink-0 transition-colors"
-                  >
-                    Dossier & Dispatch
-                  </button>
+              {activeIncidents.length === 0 ? (
+                <div className="p-8 text-center text-slate-400 space-y-1.5">
+                  <p className="text-xs font-semibold text-white">No Active Emergency Reports</p>
+                  <p className="text-[11px] text-slate-400 max-w-sm mx-auto leading-relaxed">
+                    Table public.emergency_reports contains 0 active records. Realtime listener is streaming.
+                  </p>
                 </div>
-              ))}
+              ) : (
+                activeIncidents.slice(0, 4).map((report) => (
+                  <div
+                    key={report.reportId}
+                    className="p-4 hover:bg-navy-800/40 transition-colors flex flex-col sm:flex-row sm:items-center justify-between gap-4"
+                  >
+                    <div className="space-y-1.5 flex-1">
+                      <div className="flex flex-wrap items-center gap-2">
+                        <span className="text-sm font-bold text-white">
+                          {getIncidentTypeLabel(report.incidentType)}
+                        </span>
+                        <UrgencyBadge urgency={report.urgency} />
+                        <StatusBadge status={report.status} />
+                      </div>
+
+                      <p className="text-xs text-slate-300 line-clamp-2 leading-relaxed">
+                        {report.description}
+                      </p>
+
+                      <div className="flex flex-wrap items-center gap-4 text-[11px] text-slate-400 font-mono pt-1">
+                        <span className="flex items-center gap-1">
+                          <Users className="w-3 h-3 text-red-400" />
+                          {report.peopleAffected} trapped
+                        </span>
+                        <span className="flex items-center gap-1">
+                          <MapPin className="w-3 h-3 text-cyan" />
+                          {report.latitude.toFixed(3)}, {report.longitude.toFixed(3)}
+                        </span>
+                        <span>{formatDate(report.createdAt)}</span>
+                      </div>
+                    </div>
+
+                    <button
+                      onClick={() => setModalReport(report)}
+                      className="px-3 py-1.5 rounded-lg bg-navy-800 hover:bg-navy-700 border border-navy-600 text-xs font-semibold text-cyan hover:text-cyan-glow shrink-0 transition-colors"
+                    >
+                      Dossier & Dispatch
+                    </button>
+                  </div>
+                ))
+              )}
             </div>
           </div>
 

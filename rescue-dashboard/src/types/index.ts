@@ -29,11 +29,23 @@ export interface EmergencyReport {
   verificationStatus: VerificationStatus;
   status: ReportStatus;
   createdAt: number;
-  aiSummary: string;
-  aiActions: string[];
+  expiresAt?: number;
+  syncedAt?: string;
+  aiSummary?: string;
+  aiActions?: string[];
   assignedTeamId?: string;
   assignedTeamName?: string;
-  isSimulatedMock: true; // Explicitly tag as simulated mock data for UI development
+  isSimulatedMock?: boolean;
+}
+
+export interface NetworkMessage {
+  messageId: string;
+  sourceDeviceId: string;
+  destinationDeviceId?: string;
+  hopCount: number;
+  payload?: string;
+  createdAt: number;
+  syncedAt?: string;
 }
 
 export interface RescueUpdate {
@@ -46,7 +58,7 @@ export interface RescueUpdate {
   timestamp: number;
   urgency: UrgencyLevel;
   statusChange?: ReportStatus;
-  isSimulatedMock: true;
+  isSimulatedMock?: boolean;
 }
 
 export interface MeshPeerNode {
@@ -59,7 +71,7 @@ export interface MeshPeerNode {
   pendingMessagesCount: number;
   lastSeen: number;
   status: 'ONLINE' | 'RELAYING' | 'OFFLINE';
-  isSimulatedMock: true;
+  isSimulatedMock?: boolean;
 }
 
 export interface RescueTeam {
@@ -73,14 +85,14 @@ export interface RescueTeam {
   status: 'AVAILABLE' | 'DISPATCHED' | 'ON_SITE' | 'STANDBY';
   currentSector: string;
   assignedReportIds: string[];
-  isSimulatedMock: true;
+  isSimulatedMock?: boolean;
 }
 
 export interface User {
   id: string;
   name: string;
   callsign: string;
-  role: 'COMMANDER' | 'DISPATCHER' | 'OPERATOR' | 'FIELD_LEAD';
+  role: 'admin' | 'coordinator' | 'field_responder';
   sector: string;
   email: string;
 }

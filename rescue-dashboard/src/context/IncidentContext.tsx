@@ -1,36 +1,143 @@
-import React, { createContext, useContext, useState } from 'react';
-import { EmergencyReport, RescueUpdate, MeshPeerNode, RescueTeam, ReportStatus } from '../types';
+import React, { createContext, useContext, useState, useEffect, useCallback } from 'react';
+import {
+  EmergencyReport,
+  NetworkMessage,
+  RescueUpdate,
+  MeshPeerNode,
+  RescueTeam,
+  ReportStatus
+} from '../types';
+import {
+  incidentService,
+  deriveNodesFromMessages
+} from '../services/incidentService';
 import {
   INITIAL_MOCK_REPORTS,
   INITIAL_MOCK_UPDATES,
   INITIAL_MOCK_NODES,
   INITIAL_MOCK_TEAMS
 } from '../utils/mockData';
+import { useAuth } from './AuthContext';
 
 interface IncidentContextType {
   reports: EmergencyReport[];
+  networkMessages: NetworkMessage[];
   updates: RescueUpdate[];
   nodes: MeshPeerNode[];
   teams: RescueTeam[];
   selectedReportId: string | null;
   setSelectedReportId: (id: string | null) => void;
-  updateReportStatus: (reportId: string, status: ReportStatus) => void;
+
+  // Loading and Error States
+  isLoadingReports: boolean;
+  reportsError: string | null;
+  isReportsRlsDenied: boolean;
+  isLoadingMessages: boolean;
+  messagesError: string | null;
+  isRealtimeConnected: boolean;
+
+  // Demo Mode controls (separated from production data flow)
+  isDemoMode: boolean;
+  toggleDemoMode: () => void;
+
+  // Data Refresh actions
+  refetchReports: () => Promise<void>;
+  refetchMessages: () => Promise<void>;
+  updateReportStatus: (reportId: string, status: ReportStatus) => Promise<void>;
   assignTeamToReport: (reportId: string, teamId: string) => void;
   addRescueUpdate: (reportId: string, teamId: string, message: string) => void;
-  addSimulatedIncident: () => void;
-  resetToInitialMock: () => void;
 }
 
 const IncidentContext = createContext<IncidentContextType | undefined>(undefined);
 
 export const IncidentProvider: React.FC<{ children: React.ReactNode }> = ({ children }) => {
-  const [reports, setReports] = useState<EmergencyReport[]>(INITIAL_MOCK_REPORTS);
-  const [updates, setUpdates] = useState<RescueUpdate[]>(INITIAL_MOCK_UPDATES);
-  const [nodes] = useState<MeshPeerNode[]>(INITIAL_MOCK_NODES);
-  const [teams, setTeams] = useState<RescueTeam[]>(INITIAL_MOCK_TEAMS);
-  const [selectedReportId, setSelectedReportId] = useState<string | null>(INITIAL_MOCK_REPORTS[0].reportId);
+  const { isSupabaseAuth } = useAuth();
 
-  const updateReportStatus = (reportId: string, status: ReportStatus) => {
+  // Production data states (empty by default; populated from Supabase)
+  const [reports, setReports] = useState<EmergencyReport[]>([]);
+  const [networkMessages, setNetworkMessages] = useState<NetworkMessage[]>([]);
+  const [derivedNodes, setDerivedNodes] = useState<MeshPeerNode[]>([]);
+  const [updates, setUpdates] = useState<RescueUpdate[]>([]);
+  const [teams, setTeams] = useState<RescueTeam[]>(INITIAL_MOCK_TEAMS);
+  const [selectedReportId, setSelectedReportId] = useState<string | null>(null);
+
+  // Status flags
+  const [isLoadingReports, setIsLoadingReports] = useState(true);
+  const [reportsError, setReportsError] = useState<string | null>(null);
+  const [isReportsRlsDenied, setIsReportsRlsDenied] = useState(false);
+  const [isLoadingMessages, setIsLoadingMessages] = useState(true);
+  const [messagesError, setMessagesError] = useState<string | null>(null);
+  const [isRealtimeConnected, setIsRealtimeConnected] = useState(false);
+
+  // Optional Demo Mode state (isolated from production pipeline)
+  const [isDemoMode, setIsDemoMode] = useState(false);
+
+  const fetchReports = useCallback(async () => {
+    setIsLoadingReports(true);
+    setReportsError(null);
+    setIsReportsRlsDenied(false);
+
+    const result = await incidentService.fetchEmergencyReports();
+    if (result.error) {
+      setReportsError(result.error);
+      setIsReportsRlsDenied(result.isRlsDenied);
+    } else {
+      setReports(result.data);
+      if (result.data.length > 0 && !selectedReportId) {
+        setSelectedReportId(result.data[0].reportId);
+      }
+    }
+    setIsLoadingReports(false);
+  }, [selectedReportId]);
+
+  const fetchMessages = useCallback(async () => {
+    setIsLoadingMessages(true);
+    setMessagesError(null);
+
+    const result = await incidentService.fetchNetworkMessages();
+    if (result.error) {
+      setMessagesError(result.error);
+    } else {
+      setNetworkMessages(result.data);
+      setDerivedNodes(deriveNodesFromMessages(result.data));
+    }
+    setIsLoadingMessages(false);
+  }, []);
+
+  // Fetch production data on mount & whenever auth state changes
+  useEffect(() => {
+    fetchReports();
+    fetchMessages();
+  }, [fetchReports, fetchMessages, isSupabaseAuth]);
+
+  // Subscribe to Supabase Realtime for live emergency report inserts and updates
+  useEffect(() => {
+    const unsubscribe = incidentService.subscribeToEmergencyReports(
+      (newReport) => {
+        setReports((prev) => {
+          // Avoid duplicate insertion
+          const exists = prev.some((r) => r.reportId === newReport.reportId);
+          if (exists) return prev;
+          return [newReport, ...prev];
+        });
+        setIsRealtimeConnected(true);
+      },
+      (updatedReport) => {
+        setReports((prev) =>
+          prev.map((r) => (r.reportId === updatedReport.reportId ? updatedReport : r))
+        );
+        setIsRealtimeConnected(true);
+      }
+    );
+
+    setIsRealtimeConnected(true);
+    return () => {
+      unsubscribe();
+    };
+  }, []);
+
+  const updateReportStatus = async (reportId: string, status: ReportStatus) => {
+    // Optimistic local update
     setReports((prev) =>
       prev.map((r) => (r.reportId === reportId ? { ...r, status } : r))
     );
@@ -65,18 +172,16 @@ export const IncidentProvider: React.FC<{ children: React.ReactNode }> = ({ chil
       )
     );
 
-    // Create an update log entry
     const newUpdate: RescueUpdate = {
       updateId: `UPD-${Date.now()}`,
       reportId,
       teamId,
       teamName: team.teamName,
       author: team.leaderName,
-      message: `${team.teamName} (${team.callsign}) dispatched to incident ${reportId}.`,
+      message: `${team.teamName} (${team.callsign}) assigned to report ${reportId}.`,
       timestamp: Date.now(),
       urgency: 'HIGH',
-      statusChange: 'ASSIGNED',
-      isSimulatedMock: true
+      statusChange: 'ASSIGNED'
     };
     setUpdates((prev) => [newUpdate, ...prev]);
   };
@@ -91,55 +196,46 @@ export const IncidentProvider: React.FC<{ children: React.ReactNode }> = ({ chil
       author: 'Dispatch Desk',
       message,
       timestamp: Date.now(),
-      urgency: 'MEDIUM',
-      isSimulatedMock: true
+      urgency: 'MEDIUM'
     };
     setUpdates((prev) => [newUpdate, ...prev]);
   };
 
-  const addSimulatedIncident = () => {
-    const sampleId = `SIM-REP-00${reports.length + 1}`;
-    const newReport: EmergencyReport = {
-      reportId: sampleId,
-      reporterDeviceId: `mesh-node-test-${Math.floor(Math.random() * 90 + 10)}`,
-      incidentType: 'MEDICAL_EMERGENCY',
-      description: 'Simulated trial report generated from offline smartphone mesh via BLE relay.',
-      latitude: 18.525 + (Math.random() - 0.5) * 0.03,
-      longitude: 73.85 + (Math.random() - 0.5) * 0.03,
-      urgency: 'HIGH',
-      peopleAffected: 2,
-      verificationStatus: 'CORROBORATED',
-      status: 'NEW',
-      createdAt: Date.now(),
-      aiSummary: 'Simulated test beacon received. Urgency assessed as HIGH.',
-      aiActions: ['Acknowledge beacon reception', 'Queue for next available paramedic unit'],
-      isSimulatedMock: true
-    };
-    setReports((prev) => [newReport, ...prev]);
-    setSelectedReportId(sampleId);
+  const toggleDemoMode = () => {
+    setIsDemoMode((prev) => !prev);
   };
 
-  const resetToInitialMock = () => {
-    setReports(INITIAL_MOCK_REPORTS);
-    setUpdates(INITIAL_MOCK_UPDATES);
-    setTeams(INITIAL_MOCK_TEAMS);
-    setSelectedReportId(INITIAL_MOCK_REPORTS[0].reportId);
-  };
+  // When demo mode is toggled ON, serve simulated test data; otherwise serve LIVE Supabase data
+  const effectiveReports = isDemoMode ? INITIAL_MOCK_REPORTS : reports;
+  const effectiveNodes = isDemoMode ? INITIAL_MOCK_NODES : derivedNodes;
+  const effectiveUpdates = isDemoMode ? INITIAL_MOCK_UPDATES : updates;
 
   return (
     <IncidentContext.Provider
       value={{
-        reports,
-        updates,
-        nodes,
+        reports: effectiveReports,
+        networkMessages,
+        updates: effectiveUpdates,
+        nodes: effectiveNodes,
         teams,
-        selectedReportId,
+        selectedReportId: selectedReportId || (effectiveReports[0]?.reportId ?? null),
         setSelectedReportId,
+
+        isLoadingReports: isDemoMode ? false : isLoadingReports,
+        reportsError: isDemoMode ? null : reportsError,
+        isReportsRlsDenied: isDemoMode ? false : isReportsRlsDenied,
+        isLoadingMessages: isDemoMode ? false : isLoadingMessages,
+        messagesError: isDemoMode ? null : messagesError,
+        isRealtimeConnected,
+
+        isDemoMode,
+        toggleDemoMode,
+
+        refetchReports: fetchReports,
+        refetchMessages: fetchMessages,
         updateReportStatus,
         assignTeamToReport,
-        addRescueUpdate,
-        addSimulatedIncident,
-        resetToInitialMock
+        addRescueUpdate
       }}
     >
       {children}

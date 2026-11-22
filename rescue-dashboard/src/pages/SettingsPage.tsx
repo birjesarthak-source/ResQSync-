@@ -21,7 +21,7 @@ import {
 } from '../lib/supabaseClient';
 
 export const SettingsPage: React.FC = () => {
-  const { resetToInitialMock } = useIncidents();
+  const { toggleDemoMode, isDemoMode, refetchReports } = useIncidents();
   const [audioAlerts, setAudioAlerts] = useState(true);
   const [pollingInterval, setPollingInterval] = useState('15');
   const [mapStyle, setMapStyle] = useState('tactical');
@@ -44,8 +44,8 @@ export const SettingsPage: React.FC = () => {
   };
 
   const handleReset = () => {
-    resetToInitialMock();
-    setResetMessage('Simulated data reset to initial default state.');
+    refetchReports();
+    setResetMessage('Live records refreshed from Supabase.');
     setTimeout(() => setResetMessage(''), 3000);
   };
 

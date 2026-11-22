@@ -1,35 +1,37 @@
 import React, { useState } from 'react';
 import { useNavigate } from 'react-router-dom';
-import { ShieldAlert, LogIn, Lock, Mail, Radio, UserCheck } from 'lucide-react';
+import { ShieldAlert, LogIn, Lock, Mail, Radio, UserCheck, KeyRound, AlertCircle } from 'lucide-react';
 import { useAuth } from '../context/AuthContext';
 
 export const LoginPage: React.FC = () => {
-  const { login } = useAuth();
+  const { loginWithPassword, loginDemo, authError } = useAuth();
   const navigate = useNavigate();
-  const [email, setEmail] = useState('arjun.varma@resqsync.internal');
-  const [callsign, setCallsign] = useState('Apex-Lead');
-  const [role, setRole] = useState<'COMMANDER' | 'DISPATCHER' | 'FIELD_LEAD'>('COMMANDER');
-  const [error, setError] = useState('');
+  const [email, setEmail] = useState('');
+  const [password, setPassword] = useState('');
+  const [isSubmitting, setIsSubmitting] = useState(false);
+  const [localError, setLocalError] = useState('');
 
-  const handleSubmit = (e: React.FormEvent) => {
+  const handleSupabaseLogin = async (e: React.FormEvent) => {
     e.preventDefault();
-    if (!email || !email.includes('@')) {
-      setError('Please provide a valid operator email address');
+    setLocalError('');
+    if (!email || !password) {
+      setLocalError('Please enter both email and password.');
       return;
     }
-    const success = login(email, callsign, role);
-    if (success) {
+
+    setIsSubmitting(true);
+    const result = await loginWithPassword(email, password);
+    setIsSubmitting(false);
+
+    if (result.success) {
       navigate('/');
     } else {
-      setError('Invalid operator credentials');
+      setLocalError(result.error || 'Failed to authenticate with Supabase');
     }
   };
 
-  const handleQuickLogin = (presetEmail: string, presetCallsign: string, presetRole: any) => {
-    setEmail(presetEmail);
-    setCallsign(presetCallsign);
-    setRole(presetRole);
-    login(presetEmail, presetCallsign, presetRole);
+  const handleQuickDemoLogin = (role: 'admin' | 'coordinator' | 'field_responder') => {
+    loginDemo(role);
     navigate('/');
   };
 
@@ -53,24 +55,26 @@ export const LoginPage: React.FC = () => {
           </p>
         </div>
 
-        {/* Development Notice */}
-        <div className="mb-6 p-3 rounded-xl bg-amber-500/10 border border-amber-500/30 text-xs text-amber-300 flex items-start gap-2.5">
-          <Radio className="w-4 h-4 text-amber-400 shrink-0 mt-0.5" />
+        {/* Security / RLS Notice */}
+        <div className="mb-6 p-3 rounded-xl bg-navy-950 border border-navy-800 text-xs text-slate-300 flex items-start gap-2.5">
+          <Lock className="w-4 h-4 text-cyan shrink-0 mt-0.5" />
           <div>
-            <strong className="font-semibold text-amber-200">UI Development Mode:</strong>
-            <p className="mt-0.5 text-amber-300/90 leading-tight">
-              Select an operator profile below or log in to access the test command deck.
+            <strong className="font-semibold text-cyan">RLS Protected Access:</strong>
+            <p className="mt-0.5 text-slate-400 leading-tight">
+              Sign in with your Supabase account to access live disaster records governed by Row Level Security.
             </p>
           </div>
         </div>
 
-        {error && (
-          <div className="mb-4 p-3 rounded-lg bg-red-500/15 border border-red-500/40 text-red-400 text-xs">
-            {error}
+        {(localError || authError) && (
+          <div className="mb-4 p-3 rounded-lg bg-red-500/15 border border-red-500/40 text-red-400 text-xs flex items-center gap-2">
+            <AlertCircle className="w-4 h-4 shrink-0" />
+            <span>{localError || authError}</span>
           </div>
         )}
 
-        <form onSubmit={handleSubmit} className="space-y-4">
+        {/* Supabase Password Login Form */}
+        <form onSubmit={handleSupabaseLogin} className="space-y-4">
           <div>
             <label className="block text-xs font-semibold uppercase tracking-wider text-slate-300 mb-1.5">
               Operator Email
@@ -83,71 +87,59 @@ export const LoginPage: React.FC = () => {
                 onChange={(e) => setEmail(e.target.value)}
                 required
                 className="w-full bg-navy-950 border border-navy-700 rounded-lg pl-9 pr-3 py-2 text-sm text-white focus:outline-none focus:border-cyan transition-colors"
-                placeholder="operator@resqsync.internal"
+                placeholder="coordinator@rescue.org"
               />
             </div>
           </div>
 
           <div>
             <label className="block text-xs font-semibold uppercase tracking-wider text-slate-300 mb-1.5">
-              Radio Callsign
+              Password
             </label>
             <div className="relative">
-              <Radio className="w-4 h-4 text-slate-400 absolute left-3 top-3" />
+              <KeyRound className="w-4 h-4 text-slate-400 absolute left-3 top-3" />
               <input
-                type="text"
-                value={callsign}
-                onChange={(e) => setCallsign(e.target.value)}
+                type="password"
+                value={password}
+                onChange={(e) => setPassword(e.target.value)}
                 required
                 className="w-full bg-navy-950 border border-navy-700 rounded-lg pl-9 pr-3 py-2 text-sm text-white focus:outline-none focus:border-cyan transition-colors"
-                placeholder="e.g. Apex-Lead"
+                placeholder="••••••••"
               />
             </div>
-          </div>
-
-          <div>
-            <label className="block text-xs font-semibold uppercase tracking-wider text-slate-300 mb-1.5">
-              Duty Role
-            </label>
-            <select
-              value={role}
-              onChange={(e) => setRole(e.target.value as any)}
-              className="w-full bg-navy-950 border border-navy-700 rounded-lg px-3 py-2 text-sm text-white focus:outline-none focus:border-cyan transition-colors"
-            >
-              <option value="COMMANDER">Incident Commander (Full Oversight)</option>
-              <option value="DISPATCHER">Sector Dispatcher (Resource Logistics)</option>
-              <option value="FIELD_LEAD">Field Team Lead (On-Site Coordinator)</option>
-            </select>
           </div>
 
           <button
             type="submit"
-            className="w-full mt-2 py-2.5 px-4 rounded-lg bg-cyan hover:bg-cyan-glow text-navy-950 font-bold text-sm flex items-center justify-center gap-2 shadow-lg shadow-cyan/20 transition-all hover:translate-y-[-1px]"
+            disabled={isSubmitting}
+            className="w-full mt-2 py-2.5 px-4 rounded-lg bg-cyan hover:bg-cyan-glow disabled:opacity-50 text-navy-950 font-bold text-sm flex items-center justify-center gap-2 shadow-lg shadow-cyan/20 transition-all hover:translate-y-[-1px]"
           >
             <LogIn className="w-4 h-4" />
-            Enter Command Dashboard
+            {isSubmitting ? 'Authenticating...' : 'Sign In to Supabase Command'}
           </button>
         </form>
 
-        {/* Quick Login Presets for testing */}
+        {/* Quick Demo Session Option */}
         <div className="mt-6 pt-5 border-t border-navy-800">
           <span className="text-[11px] font-semibold uppercase tracking-wider text-slate-400 block mb-2 text-center">
-            Quick-Select Test Operators
+            Or Access via Local Demo Session
           </span>
           <div className="grid grid-cols-2 gap-2 text-xs">
             <button
-              onClick={() => handleQuickLogin('arjun.varma@resqsync.internal', 'Apex-Lead', 'COMMANDER')}
-              className="p-2 rounded-lg bg-navy-800 hover:bg-navy-700 text-left border border-navy-700 text-slate-200 transition-colors"
+              type="button"
+              onClick={() => handleQuickDemoLogin('coordinator')}
+              className="p-2.5 rounded-lg bg-navy-950 hover:bg-navy-800 text-left border border-navy-800 hover:border-cyan/40 text-slate-200 transition-colors"
             >
-              <div className="font-bold text-cyan text-[11px]">Capt. Varma</div>
-              <div className="text-[10px] text-slate-400">Commander HQ</div>
+              <div className="font-bold text-cyan text-[11px]">Rescue Coordinator</div>
+              <div className="text-[10px] text-slate-400">Sector Dispatcher</div>
             </button>
             <button
-              onClick={() => handleQuickLogin('priya.sharma@resqsync.internal', 'River-Watch', 'DISPATCHER')}
-              className="p-2 rounded-lg bg-navy-800 hover:bg-navy-700 text-left border border-navy-700 text-slate-200 transition-colors"
+              type="button"
+              onClick={() => handleQuickDemoLogin('admin')}
+              className="p-2.5 rounded-lg bg-navy-950 hover:bg-navy-800 text-left border border-navy-800 hover:border-cyan/40 text-slate-200 transition-colors"
             >
-              <div className="font-bold text-cyan text-[11px]">Priya Sharma</div>
-              <div className="text-[10px] text-slate-400">Sector 4 Dispatch</div>
+              <div className="font-bold text-cyan text-[11px]">System Admin</div>
+              <div className="text-[10px] text-slate-400">Full Oversight</div>
             </button>
           </div>
         </div>
