@@ -51,7 +51,9 @@ data class EmergencyReportEntity(
 
     val locationLandmark: String? = null,
 
-    val locationSourceDeviceId: String? = null
+    val locationSourceDeviceId: String? = null,
+
+    val voiceBase64: String? = null
 )
 
 fun EmergencyReportEntity.toEmergencyReport(): EmergencyReport {
@@ -80,7 +82,8 @@ fun EmergencyReportEntity.toEmergencyReport(): EmergencyReport {
         peopleAffected = peopleAffected,
         verificationStatus = try { VerificationStatus.valueOf(verificationStatus) } catch (e: Exception) { VerificationStatus.UNVERIFIED },
         createdAt = createdAt,
-        expiresAt = expiresAt
+        expiresAt = expiresAt,
+        voiceBase64 = voiceBase64
     )
 }
 
@@ -105,6 +108,7 @@ fun EmergencyReport.toEntity(isSyncedToCloud: Boolean = false, aiSummary: String
         locationTimestamp = location.timestamp,
         locationAddress = location.address,
         locationLandmark = location.landmark,
-        locationSourceDeviceId = location.sourceDeviceId
+        locationSourceDeviceId = location.sourceDeviceId,
+        voiceBase64 = voiceBase64
     )
 }

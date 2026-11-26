@@ -7,6 +7,10 @@ import android.content.ActivityNotFoundException
 import android.content.Context
 import android.content.Intent
 import android.content.pm.PackageManager
+import android.net.ConnectivityManager
+import android.net.Network
+import android.net.NetworkCapabilities
+import android.net.NetworkRequest
 import android.net.wifi.WifiManager
 import android.os.Build
 import android.os.Bundle
@@ -39,9 +43,9 @@ import com.resqsync.app.common.ResQSyncConstants
 import com.resqsync.app.database.DatabaseManager
 import com.resqsync.app.database.repository.ReportRepository
 import com.resqsync.app.location.GPSLocationManager
+import com.resqsync.app.notifications.NotificationHelper
 
 import com.resqsync.app.models.DeliveryStatus
-import com.resqsync.app.models.DeviceRole
 import com.resqsync.app.models.EmergencyLocation
 import com.resqsync.app.models.EmergencyReport
 import com.resqsync.app.models.IncidentType
@@ -64,6 +68,8 @@ import com.resqsync.app.ui.navigation.AppNavigation
 import com.resqsync.app.ui.screens.WelcomeScreen
 import com.resqsync.app.ui.theme.ResQSyncTheme
 
+import kotlinx.coroutines.delay
+import kotlinx.coroutines.isActive
 import kotlinx.coroutines.launch
 import java.util.UUID
 
@@ -82,11 +88,13 @@ class MainActivity : ComponentActivity() {
     private lateinit var aiEngine: HybridAIEngine
     private lateinit var syncManager: SupabaseSyncManager
     private lateinit var gpsLocationManager: GPSLocationManager
+    private lateinit var notificationHelper: NotificationHelper
 
     // NETWORK COMPONENTS
     private lateinit var scanner: NearbyDeviceScanner
     private lateinit var advertiser: NearbyDeviceAdvertiser
     private lateinit var connectionManager: NearbyConnectionManager
+    private var networkCallback: ConnectivityManager.NetworkCallback? = null
 
     private val messageRouter = MessageRouter()
     private val nearbyPeers = mutableStateListOf<NearbyPeer>()
@@ -102,23 +110,22 @@ class MainActivity : ComponentActivity() {
     private var receivedNearbyLocation by mutableStateOf<EmergencyLocation?>(null)
     private var nearbyStarted by mutableStateOf(false)
     private var startAfterPermission = false
-    private var deviceRole by mutableStateOf(DeviceRole.PUBLIC_USER)
 
 
     // PERMISSION HANDLER
     private val nearbyPermissionLauncher =
         registerForActivityResult(ActivityResultContracts.RequestMultiplePermissions()) { permissions ->
             if (areNearbyPermissionsGranted()) {
-                statusMessage = "Nearby permissions granted!"
-                Log.d("ResQSync", "Nearby permissions granted")
+                statusMessage = "Permissions granted!"
+                Log.d("ResQSync", "Permissions granted")
                 if (startAfterPermission) {
                     startAfterPermission = false
                     ensureRadiosReadyAndStart()
                 }
             } else {
                 startAfterPermission = false
-                statusMessage = "Nearby permissions are required."
-                Log.e("ResQSync", "Nearby permissions denied: $permissions")
+                statusMessage = "Required permissions denied."
+                Log.e("ResQSync", "Permissions denied: $permissions")
             }
         }
 
@@ -152,16 +159,48 @@ class MainActivity : ComponentActivity() {
         aiEngine = HybridAIEngine()
         syncManager = SupabaseSyncManager(applicationContext, reportRepository)
         gpsLocationManager = GPSLocationManager(applicationContext)
+        notificationHelper = NotificationHelper(applicationContext)
 
         showWelcome = !getSharedPreferences("resqsync_preferences", MODE_PRIVATE)
             .getBoolean("welcome_completed", false)
 
         initializeNearbyComponents()
+        registerNetworkSyncCallback()
 
-        // Periodically trigger cloud sync when network is present
+        if (!areNearbyPermissionsGranted()) {
+            requestNearbyPermissions()
+        }
+
+        // 1. Continuous 5-second Automatic Cloud Sync loop
         lifecycleScope.launch {
-            if (syncManager.isInternetAvailable()) {
-                syncManager.syncPendingReports()
+            while (isActive) {
+                try {
+                    if (syncManager.isInternetAvailable()) {
+                        val res = syncManager.syncPendingReports()
+                        if (res.syncedCount > 0) {
+                            notificationHelper.showCloudSyncNotification(res.syncedCount)
+                            statusMessage = "Auto-synced ${res.syncedCount} report(s) to cloud."
+                        }
+                    }
+                } catch (e: Exception) {
+                    Log.e("ResQSync", "Auto sync loop exception", e)
+                }
+                delay(5000L)
+            }
+        }
+
+        // 2. Continuous 10-second Mesh Report Flush loop to connected peers
+        lifecycleScope.launch {
+            while (isActive) {
+                try {
+                    val connected = nearbyPeers.filter { it.isConnected }
+                    connected.forEach { peer ->
+                        sendPendingMessagesToPeer(peer.endpointId)
+                    }
+                } catch (e: Exception) {
+                    Log.e("ResQSync", "Mesh report flush loop exception", e)
+                }
+                delay(10000L)
             }
         }
 
@@ -188,15 +227,16 @@ class MainActivity : ComponentActivity() {
                                 reports = reports,
                                 rescueUpdates = rescueUpdates.toList(),
                                 deviceId = getResQSyncDeviceId(),
-                                deviceRole = deviceRole,
                                 onStartNearby = { startNearby() },
                                 onStopNearby = { stopNearby() },
                                 onConnectDevice = { endpointId -> connectToDevice(endpointId) },
                                 onDisconnectDevice = { endpointId -> disconnectDevice(endpointId) },
-                                onRoleChanged = { newRole -> deviceRole = newRole },
                                 onManualSyncRequested = {
                                     lifecycleScope.launch {
                                         val result = syncManager.syncPendingReports()
+                                        if (result.syncedCount > 0) {
+                                            notificationHelper.showCloudSyncNotification(result.syncedCount)
+                                        }
                                         statusMessage = result.message
                                     }
                                 },
@@ -210,12 +250,12 @@ class MainActivity : ComponentActivity() {
                                     connectionManager.sendLocationRequest(endpointId, getResQSyncDeviceId())
                                 },
                                 receivedNearbyLocation = receivedNearbyLocation,
-                                onSubmitReport = { incidentType, description, peopleAffected, urgency, emergencyLocation ->
-                                    saveEmergencyReport(incidentType, description, peopleAffected, urgency, emergencyLocation)
+                                onSubmitReport = { incidentType, description, peopleAffected, urgency, emergencyLocation, voiceBase64 ->
+                                    saveEmergencyReport(incidentType, description, peopleAffected, urgency, emergencyLocation, voiceBase64)
                                 }
                             )
 
-                            // Connection request dialog
+                            // Connection request dialog (fallback if manual accept is needed)
                             pendingConnection?.let { request ->
                                 AlertDialog(
                                     onDismissRequest = { rejectConnection(request) },
@@ -284,6 +324,36 @@ class MainActivity : ComponentActivity() {
     }
 
 
+    private fun registerNetworkSyncCallback() {
+        val connectivityManager = getSystemService(Context.CONNECTIVITY_SERVICE) as? ConnectivityManager
+            ?: return
+
+        val request = NetworkRequest.Builder()
+            .addCapability(NetworkCapabilities.NET_CAPABILITY_INTERNET)
+            .build()
+
+        networkCallback = object : ConnectivityManager.NetworkCallback() {
+            override fun onAvailable(network: Network) {
+                lifecycleScope.launch {
+                    val result = syncManager.syncPendingReports()
+                    if (result.syncedCount > 0) {
+                        notificationHelper.showCloudSyncNotification(result.syncedCount)
+                        runOnUiThread {
+                            statusMessage = "Auto-synced ${result.syncedCount} report(s) to cloud."
+                        }
+                    }
+                }
+            }
+        }
+
+        try {
+            connectivityManager.registerNetworkCallback(request, networkCallback!!)
+        } catch (e: Exception) {
+            Log.e("ResQSync", "Failed to register network sync callback", e)
+        }
+    }
+
+
     private fun getResQSyncDeviceId(): String {
         return Settings.Secure.getString(contentResolver, Settings.Secure.ANDROID_ID)
             ?: "unknown-device"
@@ -295,7 +365,8 @@ class MainActivity : ComponentActivity() {
         description: String,
         peopleAffected: Int?,
         urgency: UrgencyLevel,
-        emergencyLocation: EmergencyLocation = EmergencyLocation()
+        emergencyLocation: EmergencyLocation = EmergencyLocation(),
+        voiceBase64: String? = null
     ) {
         val currentTime = System.currentTimeMillis()
         val deviceId = getResQSyncDeviceId()
@@ -312,7 +383,8 @@ class MainActivity : ComponentActivity() {
             peopleAffected = peopleAffected,
             verificationStatus = VerificationStatus.UNVERIFIED,
             createdAt = currentTime,
-            expiresAt = currentTime + ResQSyncConstants.MESSAGE_EXPIRY_HOURS * 60L * 60L * 1000L
+            expiresAt = currentTime + ResQSyncConstants.MESSAGE_EXPIRY_HOURS * 60L * 60L * 1000L,
+            voiceBase64 = voiceBase64
         )
 
         lifecycleScope.launch {
@@ -342,6 +414,17 @@ class MainActivity : ComponentActivity() {
                 reportRepository.saveNetworkMessage(networkMessage, DeliveryStatus.QUEUED)
                 messageRouter.markAsProcessed(networkMessage.messageId)
 
+                // Trigger confirmation notification for report submission
+                notificationHelper.showReportSubmittedNotification(report)
+
+                // Immediate Cloud Sync attempt if internet is present!
+                if (syncManager.isInternetAvailable()) {
+                    val res = syncManager.syncPendingReports()
+                    if (res.syncedCount > 0) {
+                        notificationHelper.showCloudSyncNotification(res.syncedCount)
+                    }
+                }
+
                 val connectedPeers = nearbyPeers.filter { it.isConnected }
                 connectedPeers.forEach { peer ->
                     sendMessageToPeer(peer.endpointId, networkMessage)
@@ -361,10 +444,6 @@ class MainActivity : ComponentActivity() {
 
 
     private fun sendMessageToPeer(endpointId: String, message: NetworkMessage) {
-        val transmissionKey = "${message.messageId}@$endpointId"
-        if (transmissionKey in attemptedTransmissions) return
-
-        attemptedTransmissions.add(transmissionKey)
         connectionManager.sendMessage(endpointId, message)
         lifecycleScope.launch {
             reportRepository.updateMessageStatus(message.messageId, DeliveryStatus.SENT_TO_PEER)
@@ -395,6 +474,17 @@ class MainActivity : ComponentActivity() {
 
                 messageSourceEndpoints[message.messageId] = sourceEndpointId
                 messageRouter.markAsProcessed(message.messageId)
+
+                // Trigger notification for received report
+                notificationHelper.showReportReceivedNotification(processedReport)
+
+                // Immediate Cloud Sync attempt if internet is present!
+                if (syncManager.isInternetAvailable()) {
+                    val res = syncManager.syncPendingReports()
+                    if (res.syncedCount > 0) {
+                        notificationHelper.showCloudSyncNotification(res.syncedCount)
+                    }
+                }
 
                 // Send Delivery Acknowledgement back to sender endpoint!
                 connectionManager.sendDeliveryAck(sourceEndpointId, message.messageId, deviceId)
@@ -487,6 +577,7 @@ class MainActivity : ComponentActivity() {
                     if (packet.acknowledgedMessageId != null) {
                         lifecycleScope.launch {
                             reportRepository.updateMessageStatus(packet.acknowledgedMessageId, DeliveryStatus.DELIVERED)
+                            notificationHelper.showDeliveryAckNotification(packet.acknowledgedMessageId)
                             statusMessage = "Report delivery confirmed (ACK received)."
                         }
                     }
@@ -527,7 +618,9 @@ class MainActivity : ComponentActivity() {
                     } else {
                         nearbyPeers.add(NearbyPeer(endpointId = endpointId, deviceName = deviceName, isConnected = false))
                     }
-                    statusMessage = "Discovered device: $deviceName"
+                    statusMessage = "Discovered device: $deviceName. Connecting..."
+                    // Automatically request connection to discovered peer
+                    connectToDevice(endpointId)
                 }
             },
             onDeviceLost = { endpointId ->
@@ -562,15 +655,16 @@ class MainActivity : ComponentActivity() {
 
     private fun showConnectionRequest(endpointId: String, deviceName: String, authDigits: String) {
         runOnUiThread {
-            pendingConnection = PendingConnection(endpointId, deviceName, authDigits)
-            statusMessage = "Connection request from $deviceName"
+            val req = PendingConnection(endpointId, deviceName, authDigits)
+            // Auto accept connection request in disaster mesh mode so devices connect immediately!
+            acceptConnection(req)
         }
     }
 
     private fun acceptConnection(request: PendingConnection) {
         connectionManager.acceptConnection(request.endpointId)
         pendingConnection = null
-        statusMessage = "Accepted. Connecting..."
+        statusMessage = "Connecting with ${request.deviceName}..."
     }
 
     private fun rejectConnection(request: PendingConnection) {
@@ -689,6 +783,15 @@ class MainActivity : ComponentActivity() {
     }
 
     override fun onDestroy() {
+        networkCallback?.let { callback ->
+            val connectivityManager = getSystemService(Context.CONNECTIVITY_SERVICE) as? ConnectivityManager
+            try {
+                connectivityManager?.unregisterNetworkCallback(callback)
+            } catch (e: Exception) {
+                // ignore
+            }
+        }
+
         if (nearbyStarted) {
             scanner.stopDiscovery()
             advertiser.stopAdvertising()

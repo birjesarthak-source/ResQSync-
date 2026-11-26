@@ -19,5 +19,6 @@ data class EmergencyReport(
     val peopleAffected: Int? = null,
     val verificationStatus: VerificationStatus,
     val createdAt: Long,
-    val expiresAt: Long
+    val expiresAt: Long,
+    val voiceBase64: String? = null
 )

@@ -19,8 +19,8 @@ import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import com.resqsync.app.models.EmergencyLocation
 import com.resqsync.app.models.LocationSource
-import com.resqsync.app.ui.theme.ResQSyncCyan
 import com.resqsync.app.ui.theme.ResQSyncEmergencyRed
+import com.resqsync.app.ui.theme.ResQSyncPrimaryBlue
 import kotlin.math.roundToInt
 
 data class OfflineLandmarkPreset(
@@ -87,7 +87,7 @@ fun OfflineMapPicker(
                     text = "Offline Interactive Map",
                     style = MaterialTheme.typography.titleLarge,
                     fontWeight = FontWeight.Bold,
-                    color = Color.White
+                    color = MaterialTheme.colorScheme.onSurface
                 )
 
                 TextButton(onClick = onDismiss) {
@@ -106,7 +106,7 @@ fun OfflineMapPicker(
                 modifier = Modifier
                     .fillMaxWidth()
                     .height(260.dp)
-                    .background(Color(0xFF04101D), RoundedCornerShape(12.dp))
+                    .background(Color(0xFFF1F5F9), RoundedCornerShape(12.dp))
             ) {
                 Canvas(
                     modifier = Modifier
@@ -114,7 +114,6 @@ fun OfflineMapPicker(
                         .pointerInput(Unit) {
                             detectTapGestures { tapOffset ->
                                 pinOffset = tapOffset
-                                // Convert canvas offset (0..width, 0..height) to Lat/Long delta
                                 val latDelta = (250f - tapOffset.y) * 0.0001
                                 val longDelta = (tapOffset.x - 250f) * 0.0001
                                 selectedLat = ((baseLat + latDelta) * 10000.0).roundToInt() / 10000.0
@@ -126,12 +125,11 @@ fun OfflineMapPicker(
                     val width = size.width
                     val height = size.height
 
-                    // Draw grid lines
                     val step = 40f
                     var x = 0f
                     while (x < width) {
                         drawLine(
-                            color = Color(0xFF102D46),
+                            color = Color(0xFFCBD5E1),
                             start = Offset(x, 0f),
                             end = Offset(x, height),
                             strokeWidth = 1f
@@ -142,7 +140,7 @@ fun OfflineMapPicker(
                     var y = 0f
                     while (y < height) {
                         drawLine(
-                            color = Color(0xFF102D46),
+                            color = Color(0xFFCBD5E1),
                             start = Offset(0f, y),
                             end = Offset(width, y),
                             strokeWidth = 1f
@@ -150,14 +148,12 @@ fun OfflineMapPicker(
                         y += step
                     }
 
-                    // Draw simulated river path
                     val riverPath = Path().apply {
                         moveTo(0f, height * 0.3f)
                         cubicTo(width * 0.3f, height * 0.2f, width * 0.7f, height * 0.6f, width, height * 0.5f)
                     }
-                    drawPath(riverPath, Color(0xFF00C5D2).copy(alpha = 0.3f), style = Stroke(width = 12f))
+                    drawPath(riverPath, ResQSyncPrimaryBlue.copy(alpha = 0.3f), style = Stroke(width = 12f))
 
-                    // Draw target pin
                     drawCircle(ResQSyncEmergencyRed, radius = 10f, center = pinOffset)
                     drawCircle(Color.White, radius = 4f, center = pinOffset)
                 }
@@ -166,14 +162,14 @@ fun OfflineMapPicker(
                     modifier = Modifier
                         .align(Alignment.BottomStart)
                         .padding(10.dp),
-                    color = Color.Black.copy(alpha = 0.7f),
+                    color = MaterialTheme.colorScheme.surface,
                     shape = RoundedCornerShape(8.dp)
                 ) {
                     Text(
                         text = "Lat: $selectedLat | Long: $selectedLong",
                         modifier = Modifier.padding(horizontal = 8.dp, vertical = 4.dp),
                         style = MaterialTheme.typography.labelSmall,
-                        color = ResQSyncCyan,
+                        color = ResQSyncPrimaryBlue,
                         fontWeight = FontWeight.Bold
                     )
                 }
@@ -184,7 +180,7 @@ fun OfflineMapPicker(
                 text = "Preset Local Landmarks (Offline Sector Cache)",
                 style = MaterialTheme.typography.titleSmall,
                 fontWeight = FontWeight.Bold,
-                color = Color.White
+                color = MaterialTheme.colorScheme.onSurface
             )
 
             Column(
@@ -222,12 +218,12 @@ fun OfflineMapPicker(
                     )
                 },
                 modifier = Modifier.fillMaxWidth(),
-                colors = ButtonDefaults.buttonColors(containerColor = ResQSyncCyan),
+                colors = ButtonDefaults.buttonColors(containerColor = ResQSyncPrimaryBlue),
                 shape = RoundedCornerShape(12.dp)
             ) {
                 Text(
                     text = "Confirm Selected Location",
-                    color = MaterialTheme.colorScheme.background,
+                    color = Color.White,
                     fontWeight = FontWeight.Bold
                 )
             }

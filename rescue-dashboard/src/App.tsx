@@ -8,6 +8,8 @@ import { LoginPage } from './pages/LoginPage';
 import { DashboardOverviewPage } from './pages/DashboardOverviewPage';
 import { EmergencyReportsPage } from './pages/EmergencyReportsPage';
 import { IncidentMapPage } from './pages/IncidentMapPage';
+import { KanbanDispatchBoard } from './pages/KanbanDispatchBoard';
+import { AnalyticsPage } from './pages/AnalyticsPage';
 import { RescueUpdatesPage } from './pages/RescueUpdatesPage';
 import { NetworkMonitoringPage } from './pages/NetworkMonitoringPage';
 import { TeamManagementPage } from './pages/TeamManagementPage';
@@ -27,6 +29,8 @@ export const App: React.FC = () => {
               <Route index element={<DashboardOverviewPage />} />
               <Route path="reports" element={<EmergencyReportsPage />} />
               <Route path="map" element={<IncidentMapPage />} />
+              <Route path="dispatch" element={<KanbanDispatchBoard />} />
+              <Route path="analytics" element={<AnalyticsPage />} />
               <Route path="updates" element={<RescueUpdatesPage />} />
               <Route path="network" element={<NetworkMonitoringPage />} />
               <Route path="teams" element={<TeamManagementPage />} />

@@ -5,7 +5,6 @@ import androidx.compose.material3.*
 import androidx.compose.runtime.*
 import androidx.compose.ui.Modifier
 
-import com.resqsync.app.models.DeviceRole
 import com.resqsync.app.models.EmergencyLocation
 import com.resqsync.app.models.EmergencyReport
 import com.resqsync.app.models.IncidentType
@@ -38,7 +37,6 @@ fun AppNavigation(
     reports: List<EmergencyReport>,
     rescueUpdates: List<RescueUpdate> = emptyList(),
     deviceId: String = "unknown-device",
-    deviceRole: DeviceRole = DeviceRole.PUBLIC_USER,
 
     onStartNearby: () -> Unit,
     onStopNearby: () -> Unit,
@@ -46,7 +44,6 @@ fun AppNavigation(
     onConnectDevice: (String) -> Unit,
     onDisconnectDevice: (String) -> Unit,
 
-    onRoleChanged: (DeviceRole) -> Unit = {},
     onManualSyncRequested: () -> Unit = {},
     onClearDataRequested: () -> Unit = {},
 
@@ -58,7 +55,8 @@ fun AppNavigation(
         String,
         Int?,
         UrgencyLevel,
-        EmergencyLocation
+        EmergencyLocation,
+        String?
     ) -> Unit
 ) {
 
@@ -118,14 +116,16 @@ fun AppNavigation(
                             description,
                             peopleAffected,
                             urgency,
-                            emergencyLocation ->
+                            emergencyLocation,
+                            voiceBase64 ->
 
                         onSubmitReport(
                             incidentType,
                             description,
                             peopleAffected,
                             urgency,
-                            emergencyLocation
+                            emergencyLocation,
+                            voiceBase64
                         )
 
                         showReportForm = false
@@ -209,8 +209,6 @@ fun AppNavigation(
 
                         SettingsScreen(
                             deviceId = deviceId,
-                            deviceRole = deviceRole,
-                            onRoleChanged = onRoleChanged,
                             onManualSyncRequested = onManualSyncRequested,
                             onClearDataRequested = onClearDataRequested
                         )

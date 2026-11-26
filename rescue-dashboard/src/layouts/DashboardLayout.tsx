@@ -16,7 +16,7 @@ export const DashboardLayout: React.FC = () => {
   }
 
   return (
-    <div className="flex h-screen w-screen overflow-hidden bg-navy-950 font-sans">
+    <div className="flex h-screen w-screen overflow-hidden bg-slate-50 font-sans text-slate-800">
       {/* Sidebar */}
       <Sidebar
         isCollapsed={isSidebarCollapsed}
@@ -34,7 +34,7 @@ export const DashboardLayout: React.FC = () => {
         <DemoBanner />
 
         {/* Scrollable Page Body */}
-        <main className="flex-1 overflow-y-auto p-4 md:p-6 lg:p-8 bg-navy-950/80">
+        <main className="flex-1 overflow-y-auto p-4 md:p-6 lg:p-8 bg-slate-50">
           <div className="max-w-7xl mx-auto">
             <Outlet />
           </div>

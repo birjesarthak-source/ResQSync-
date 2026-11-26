@@ -4,26 +4,37 @@ import android.content.Context
 import android.net.ConnectivityManager
 import android.net.NetworkCapabilities
 import android.util.Log
+import com.resqsync.app.BuildConfig
 import com.resqsync.app.database.repository.ReportRepository
 import com.resqsync.app.models.EmergencyReport
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.withContext
+import okhttp3.MediaType.Companion.toMediaType
+import okhttp3.OkHttpClient
+import okhttp3.Request
+import okhttp3.RequestBody.Companion.toRequestBody
+import org.json.JSONObject
+import java.util.concurrent.TimeUnit
 
 class SupabaseSyncManager(
     private val context: Context,
     private val reportRepository: ReportRepository
 ) {
 
+    private val httpClient: OkHttpClient = OkHttpClient.Builder()
+        .connectTimeout(15, TimeUnit.SECONDS)
+        .readTimeout(15, TimeUnit.SECONDS)
+        .build()
+
     fun isInternetAvailable(): Boolean {
         val connectivityManager =
             context.getSystemService(Context.CONNECTIVITY_SERVICE) as? ConnectivityManager
-                ?: return false
+                ?: return true
 
-        val network = connectivityManager.activeNetwork ?: return false
-        val capabilities = connectivityManager.getNetworkCapabilities(network) ?: return false
+        val network = connectivityManager.activeNetwork ?: return true
+        val capabilities = connectivityManager.getNetworkCapabilities(network) ?: return true
 
-        return capabilities.hasCapability(NetworkCapabilities.NET_CAPABILITY_INTERNET) &&
-                capabilities.hasCapability(NetworkCapabilities.NET_CAPABILITY_VALIDATED)
+        return capabilities.hasCapability(NetworkCapabilities.NET_CAPABILITY_INTERNET)
     }
 
     suspend fun syncPendingReports(): SyncResult {
@@ -52,7 +63,7 @@ class SupabaseSyncManager(
                 SyncResult(
                     success = true,
                     syncedCount = successCount,
-                    message = "Synced $successCount reports"
+                    message = "Synced $successCount reports to cloud"
                 )
             } catch (e: Exception) {
                 Log.e("ResQSyncSync", "Cloud sync failed", e)
@@ -61,11 +72,89 @@ class SupabaseSyncManager(
         }
     }
 
-    private suspend fun syncSingleReportToCloud(report: EmergencyReport): Boolean {
-        // Cloud HTTP payload sync simulation / endpoint verification
-        // In production, SUPABASE_URL and SUPABASE_ANON_KEY are passed via BuildConfig or secure keystore.
-        Log.d("ResQSyncSync", "Syncing report ${report.reportId} to cloud backend.")
-        return true
+    private fun syncSingleReportToCloud(report: EmergencyReport): Boolean {
+        // Primary attempt with all fields including voice_base64
+        val successPrimary = executePostToSupabase(report, includeVoice = true)
+        if (successPrimary) return true
+
+        // Fallback attempt without voice_base64 if column is missing on live Supabase table
+        if (!report.voiceBase64.isNullOrBlank()) {
+            Log.w("ResQSyncSync", "Retrying Supabase POST for report ${report.reportId} without voice_base64 fallback...")
+            return executePostToSupabase(report, includeVoice = false)
+        }
+
+        return false
+    }
+
+    private fun executePostToSupabase(report: EmergencyReport, includeVoice: Boolean): Boolean {
+        val supabaseUrl = BuildConfig.SUPABASE_URL
+        val supabaseKey = BuildConfig.SUPABASE_ANON_KEY
+
+        if (supabaseUrl.contains("your-project") || supabaseKey.contains("your-anon-key")) {
+            Log.w("ResQSyncSync", "Supabase credentials not configured in BuildConfig.")
+            return false
+        }
+
+        val endpoint = "${supabaseUrl.trimEnd('/')}/rest/v1/emergency_reports?on_conflict=report_id"
+        val jsonObject = JSONObject().apply {
+            put("report_id", report.reportId)
+            put("reporter_device_id", report.reporterDeviceId)
+            put("incident_type", report.incidentType.name)
+            put("description", report.description)
+
+            val lat = report.location.latitude ?: report.latitude
+            val lng = report.location.longitude ?: report.longitude
+            if (lat != null) put("latitude", lat) else put("latitude", JSONObject.NULL)
+            if (lng != null) put("longitude", lng) else put("longitude", JSONObject.NULL)
+
+            put("urgency", report.urgency.name)
+            put("people_affected", report.peopleAffected ?: 0)
+            put("verification_status", "UNVERIFIED")
+
+            if (!report.location.landmark.isNullOrBlank()) {
+                put("ai_summary", "Landmark: ${report.location.landmark} | ${report.description}")
+            } else {
+                put("ai_summary", report.description)
+            }
+
+            if (includeVoice && !report.voiceBase64.isNullOrBlank()) {
+                put("voice_base64", report.voiceBase64)
+            }
+
+            put("created_at", report.createdAt)
+            put("expires_at", report.expiresAt)
+        }
+
+        val jsonBody = jsonObject.toString()
+        val mediaType = "application/json; charset=utf-8".toMediaType()
+        val requestBody = jsonBody.toRequestBody(mediaType)
+
+        val request = Request.Builder()
+            .url(endpoint)
+            .addHeader("apikey", supabaseKey)
+            .addHeader("Authorization", "Bearer $supabaseKey")
+            .addHeader("Content-Type", "application/json")
+            .addHeader("Prefer", "return=minimal, resolution=merge-duplicates")
+            .post(requestBody)
+            .build()
+
+        return try {
+            val response = httpClient.newCall(request).execute()
+            response.use { resp ->
+                val bodyStr = resp.body?.string() ?: ""
+                val isSuccess = resp.isSuccessful || resp.code in 200..299 || resp.code == 409
+                if (isSuccess) {
+                    Log.d("ResQSyncSync", "Report ${report.reportId} posted to Supabase successfully: HTTP ${resp.code}")
+                    true
+                } else {
+                    Log.e("ResQSyncSync", "Failed to sync report ${report.reportId} (includeVoice=$includeVoice): HTTP ${resp.code} Body: $bodyStr")
+                    false
+                }
+            }
+        } catch (e: Exception) {
+            Log.e("ResQSyncSync", "Network error posting report ${report.reportId} to Supabase", e)
+            false
+        }
     }
 }
 

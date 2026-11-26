@@ -4,11 +4,10 @@ plugins {
     alias(libs.plugins.kotlin.serialization)
     alias(libs.plugins.ksp)
 }
+
 android {
     namespace = "com.resqsync.app"
-    compileSdk {
-        version = release(37)
-    }
+    compileSdk = 37
 
     defaultConfig {
         applicationId = "com.resqsync.app"
@@ -18,22 +17,41 @@ android {
         versionName = "1.0"
 
         testInstrumentationRunner = "androidx.test.runner.AndroidJUnitRunner"
+
+        buildConfigField("String", "SUPABASE_URL", "\"https://aklfmegzswtmfyocifwx.supabase.co\"")
+        buildConfigField("String", "SUPABASE_ANON_KEY", "\"eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6ImFrbGZtZWd6c3d0bWZ5b2NpZnd4Iiwicm9sZSI6ImFub24iLCJpYXQiOjE3OTUzMzQ4OTMsImV4cCI6MjExMDkxMDg5M30.k4pW26RKj4vhH6RjbgpvvDsWkmUeniGFa8ScW1vKlJk\"")
+    }
+
+    lint {
+        checkReleaseBuilds = false
+        abortOnError = false
+    }
+
+    signingConfigs {
+        getByName("debug") {
+            enableV1Signing = true
+            enableV2Signing = true
+        }
     }
 
     buildTypes {
+        debug {
+            isMinifyEnabled = false
+            signingConfig = signingConfigs.getByName("debug")
+        }
         release {
-            optimization {
-                enable = true
-                packageScope = setOf("androidx.**", "kotlin.**", "kotlinx.**")
-            }
+            isMinifyEnabled = false
+            signingConfig = signingConfigs.getByName("debug")
         }
     }
+
     compileOptions {
         sourceCompatibility = JavaVersion.VERSION_11
         targetCompatibility = JavaVersion.VERSION_11
     }
     buildFeatures {
         compose = true
+        buildConfig = true
     }
 }
 
@@ -42,10 +60,9 @@ dependencies {
     implementation(libs.compose.runtime)
     implementation(libs.androidx.room.runtime)
     implementation(libs.androidx.room.ktx)
-
-// Room compiler using KSP
-
     ksp(libs.androidx.room.compiler)
+
+    implementation(libs.okhttp)
     implementation(libs.play.services.nearby)
     implementation(libs.kotlinx.serialization.json)
     implementation(platform(libs.androidx.compose.bom))

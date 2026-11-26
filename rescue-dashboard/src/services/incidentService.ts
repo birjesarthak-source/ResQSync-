@@ -33,6 +33,7 @@ export const mapRowToEmergencyReport = (row: any): EmergencyReport => {
     syncedAt: row.synced_at,
     aiSummary: row.ai_summary || undefined,
     aiActions: row.ai_actions || undefined,
+    voiceBase64: row.voice_base64 || undefined,
     isSimulatedMock: false
   };
 };

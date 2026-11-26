@@ -1,226 +1,130 @@
 import React, { useState } from 'react';
-import {
-  MapPin,
-  ShieldAlert,
-  Users,
-  Compass,
-  Layers,
-  Crosshair,
-  Bot,
-  CheckCircle2,
-  AlertTriangle
-} from 'lucide-react';
+import { MapPin, RefreshCw, AlertTriangle } from 'lucide-react';
 import { useIncidents } from '../context/IncidentContext';
-import { UrgencyBadge, StatusBadge } from '../components/StatusBadge';
-import { IncidentDetailsModal } from '../components/IncidentDetailsModal';
+import { UrgencyBadge } from '../components/StatusBadge';
 import { EmergencyReport } from '../types';
-import { getIncidentTypeLabel } from '../utils/formatters';
 
 export const IncidentMapPage: React.FC = () => {
-  const { reports, selectedReportId, setSelectedReportId } = useIncidents();
-  const [selectedReportForModal, setSelectedReportForModal] = useState<EmergencyReport | null>(null);
-  const [filterUrgency, setFilterUrgency] = useState<string>('ALL');
-
-  const filteredReports = reports.filter((r) => {
-    if (filterUrgency !== 'ALL' && r.urgency !== filterUrgency) return false;
-    return true;
-  });
-
-  const activeReport = reports.find((r) => r.reportId === selectedReportId) || filteredReports[0] || null;
-
-  // Normalized coordinate projection for demo canvas
-  // Base origin: 18.5204 N, 73.8567 E
-  const calculatePlotPosition = (lat: number, lon: number) => {
-    const latOffset = (lat - 18.5204) * 2000;
-    const lonOffset = (lon - 73.8567) * 2000;
-    const top = Math.min(85, Math.max(15, 50 - latOffset));
-    const left = Math.min(85, Math.max(15, 50 + lonOffset));
-    return { top: `${top}%`, left: `${left}%` };
-  };
+  const { reports, isLoadingReports, refetchReports } = useIncidents();
+  const [selectedReport, setSelectedReport] = useState<EmergencyReport | null>(
+    reports.length > 0 ? reports[0] : null
+  );
 
   return (
     <div className="space-y-6">
       {/* Header */}
-      <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4 pb-2 border-b border-navy-800">
+      <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4 pb-2 border-b border-slate-200">
         <div>
-          <h1 className="text-2xl font-extrabold text-white tracking-wide flex items-center gap-2">
-            Incident Geolocation & Tactical Map
-            <span className="w-2.5 h-2.5 rounded-full bg-cyan animate-pulse" />
+          <h1 className="text-2xl font-extrabold text-slate-800 tracking-wide flex items-center gap-2">
+            Disaster Incident Map
+            <span className="text-xs px-2.5 py-0.5 rounded-full bg-blue-50 text-blue-600 border border-blue-200 font-mono font-bold">
+              {reports.length} Map Pins
+            </span>
           </h1>
-          <p className="text-xs text-slate-400 mt-0.5">
-            Geographic dispersion of emergency reports mapped from peer GPS fixes
+          <p className="text-xs text-slate-500 mt-0.5">
+            Geospatial visualization of field emergency reports relayed through offline mesh gateways
           </p>
         </div>
 
-        <div className="flex items-center gap-3">
-          <select
-            value={filterUrgency}
-            onChange={(e) => setFilterUrgency(e.target.value)}
-            className="bg-navy-900 border border-navy-700 rounded-lg px-3 py-1.5 text-xs text-white focus:outline-none focus:border-cyan"
-          >
-            <option value="ALL">Show All Urgencies</option>
-            <option value="CRITICAL">Critical Pins Only</option>
-            <option value="HIGH">High Urgency Pins</option>
-            <option value="MEDIUM">Medium Urgency Pins</option>
-          </select>
-        </div>
+        <button
+          onClick={() => refetchReports()}
+          disabled={isLoadingReports}
+          className="px-3.5 py-2 rounded-lg bg-blue-600 hover:bg-blue-700 text-white font-bold text-xs flex items-center gap-2 shadow-xs transition-colors self-start sm:self-auto"
+        >
+          <RefreshCw className={`w-3.5 h-3.5 ${isLoadingReports ? 'animate-spin' : ''}`} />
+          <span>Sync Coordinates</span>
+        </button>
       </div>
 
-      {/* Main Map Interface Area */}
-      <div className="grid grid-cols-1 lg:grid-cols-3 gap-6 h-[640px]">
-        {/* Map Canvas (Left 2 columns) */}
-        <div className="lg:col-span-2 bg-navy-900 border border-navy-700 rounded-2xl relative overflow-hidden shadow-2xl flex flex-col">
-          {/* Tactical Overlay Bar */}
-          <div className="p-3 bg-navy-950/80 border-b border-navy-700 flex items-center justify-between z-10">
-            <div className="flex items-center gap-3 text-xs font-mono text-cyan">
-              <Compass className="w-4 h-4 text-cyan" />
-              <span>RADAR GRID: SECTORS 1-4 (PUNE EMERGENCY DISPATCH ZONE)</span>
-            </div>
-            <div className="flex items-center gap-2 text-xs text-slate-400 font-mono">
-              <Crosshair className="w-3.5 h-3.5 text-slate-400" />
-              <span>DATUM: WGS84</span>
-            </div>
+      {/* Map Layout Container */}
+      <div className="bg-white rounded-xl border border-slate-200 overflow-hidden shadow-xs grid grid-cols-1 lg:grid-cols-3 h-[600px]">
+        {/* Left Sidebar Pin Selector */}
+        <div className="border-r border-slate-200 flex flex-col h-full bg-slate-50/50">
+          <div className="p-3 bg-slate-100 border-b border-slate-200 text-xs font-bold text-slate-700 uppercase tracking-wider">
+            Incident Pin Queue ({reports.length})
           </div>
 
-          {/* Interactive Map Visualizer */}
-          <div className="flex-1 relative bg-navy-950 flex items-center justify-center overflow-hidden">
-            {/* Grid Lines Pattern */}
-            <div className="absolute inset-0 bg-[linear-gradient(to_right,#0d2238_1px,transparent_1px),linear-gradient(to_bottom,#0d2238_1px,transparent_1px)] bg-[size:40px_40px] opacity-70" />
-
-            {/* Radar Circular Scan Lines */}
-            <div className="absolute w-[360px] h-[360px] rounded-full border border-cyan/20 pointer-events-none" />
-            <div className="absolute w-[540px] h-[540px] rounded-full border border-cyan/15 pointer-events-none" />
-            <div className="absolute w-[720px] h-[720px] rounded-full border border-cyan/10 pointer-events-none" />
-            <div className="absolute w-2 h-2 rounded-full bg-cyan/60 pointer-events-none" />
-
-            {/* Sector Zones Overlay Labels */}
-            <span className="absolute top-6 left-6 text-[10px] font-mono tracking-widest text-slate-400 uppercase">
-              Sector 4 (Riverside Basin)
-            </span>
-            <span className="absolute top-6 right-6 text-[10px] font-mono tracking-widest text-slate-400 uppercase">
-              Sector 3 (East Highlands)
-            </span>
-            <span className="absolute bottom-6 left-6 text-[10px] font-mono tracking-widest text-slate-400 uppercase">
-              Sector 2 (Central Urban)
-            </span>
-            <span className="absolute bottom-6 right-6 text-[10px] font-mono tracking-widest text-slate-400 uppercase">
-              Sector 1 (Command Deck)
-            </span>
-
-            {/* Plotted Emergency Pins */}
-            {filteredReports.map((report) => {
-              const pos = calculatePlotPosition(report.latitude, report.longitude);
-              const isSelected = activeReport?.reportId === report.reportId;
-              const isCritical = report.urgency === 'CRITICAL';
-
-              return (
+          <div className="flex-1 overflow-y-auto divide-y divide-slate-100 p-2 space-y-1">
+            {reports.length === 0 ? (
+              <div className="p-6 text-center text-slate-400 text-xs">
+                No report coordinates available on map.
+              </div>
+            ) : (
+              reports.map((report) => (
                 <div
                   key={report.reportId}
-                  style={pos}
-                  onClick={() => setSelectedReportId(report.reportId)}
-                  className="absolute -translate-x-1/2 -translate-y-1/2 cursor-pointer group z-20"
+                  onClick={() => setSelectedReport(report)}
+                  className={`p-3 rounded-lg cursor-pointer transition-colors ${
+                    selectedReport?.reportId === report.reportId
+                      ? 'bg-blue-50 border border-blue-300'
+                      : 'bg-white hover:bg-slate-100 border border-slate-200'
+                  }`}
                 >
-                  {/* Radar pulse for critical alarms */}
-                  {isCritical && (
-                    <span className="absolute -inset-2 rounded-full bg-red-500/30 animate-ping" />
-                  )}
-
-                  <div
-                    className={`relative w-8 h-8 rounded-full flex items-center justify-center font-bold text-xs shadow-xl transition-transform hover:scale-125 ${
-                      isSelected
-                        ? 'ring-4 ring-cyan bg-white text-navy-950 scale-110'
-                        : isCritical
-                        ? 'bg-red-500 text-white shadow-red-900/50'
-                        : report.urgency === 'HIGH'
-                        ? 'bg-orange-500 text-white'
-                        : 'bg-cyan text-navy-950'
-                    }`}
-                  >
-                    <MapPin className="w-4 h-4" />
+                  <div className="flex items-center justify-between mb-1">
+                    <span className="font-bold text-slate-800 text-xs">{report.incidentType.replace('_', ' ')}</span>
+                    <UrgencyBadge urgency={report.urgency} />
                   </div>
-
-                  {/* Hover Tag */}
-                  <div className="absolute bottom-full mb-1.5 left-1/2 -translate-x-1/2 px-2 py-1 rounded bg-navy-900/95 border border-cyan/40 text-white text-[10px] whitespace-nowrap shadow-xl opacity-0 group-hover:opacity-100 transition-opacity pointer-events-none">
-                    <span className="font-bold text-cyan">{report.incidentType}: </span>
-                    <span>{report.peopleAffected} victims</span>
+                  <p className="text-slate-600 text-xs line-clamp-1">{report.description}</p>
+                  <div className="text-[10px] text-slate-400 font-mono mt-1 flex items-center gap-1">
+                    <MapPin className="w-3 h-3 text-blue-600 shrink-0" />
+                    <span>{report.latitude.toFixed(4)}, {report.longitude.toFixed(4)}</span>
                   </div>
                 </div>
-              );
-            })}
-          </div>
-
-          {/* Map Footer Bar */}
-          <div className="p-3 bg-navy-950/90 border-t border-navy-700 flex items-center justify-between text-xs text-slate-400">
-            <span>Showing {filteredReports.length} Active Incident Pins</span>
-            <span className="font-mono text-cyan">GPS Status: Calibrated (Cellular Tower Assisted)</span>
+              ))
+            )}
           </div>
         </div>
 
-        {/* Selected Incident Inspector Panel (Right 1 column) */}
-        <div className="bg-navy-900 border border-navy-700 rounded-2xl p-5 shadow-2xl flex flex-col justify-between overflow-y-auto">
-          {activeReport ? (
-            <div className="space-y-4">
-              <div className="flex items-center justify-between">
-                <span className="text-[11px] font-mono text-slate-400 uppercase">Selected Incident</span>
-                <UrgencyBadge urgency={activeReport.urgency} />
-              </div>
+        {/* Interactive Map Visualizer Canvas */}
+        <div className="lg:col-span-2 relative bg-slate-100 flex items-center justify-center overflow-hidden">
+          <div
+            className="absolute inset-0 opacity-20"
+            style={{
+              backgroundImage: 'radial-gradient(#2563eb 1px, transparent 1px)',
+              backgroundSize: '24px 24px'
+            }}
+          />
 
-              <div>
-                <h3 className="text-lg font-bold text-white tracking-wide">
-                  {getIncidentTypeLabel(activeReport.incidentType)}
-                </h3>
-                <span className="text-xs font-mono text-cyan">ID: {activeReport.reportId}</span>
-              </div>
-
-              <div className="p-3.5 rounded-xl bg-navy-950 border border-navy-800 text-xs text-slate-200 leading-relaxed">
-                {activeReport.description}
-              </div>
-
-              <div className="grid grid-cols-2 gap-2 text-xs">
-                <div className="p-2.5 rounded-lg bg-navy-800/60 border border-navy-700">
-                  <span className="text-[10px] text-slate-400 uppercase block">Casualties</span>
-                  <span className="text-sm font-mono font-bold text-red-400">
-                    {activeReport.peopleAffected} Trapped
-                  </span>
+          {selectedReport ? (
+            <div className="bg-white border border-slate-200 rounded-2xl p-6 max-w-md shadow-xl z-10 space-y-4">
+              <div className="flex items-center justify-between border-b border-slate-100 pb-3">
+                <div>
+                  <h3 className="text-base font-bold text-slate-800">{selectedReport.incidentType.replace('_', ' ')}</h3>
+                  <span className="text-xs text-slate-400 font-mono">ID: {selectedReport.reportId}</span>
                 </div>
-                <div className="p-2.5 rounded-lg bg-navy-800/60 border border-navy-700">
-                  <span className="text-[10px] text-slate-400 uppercase block">Coordinates</span>
-                  <span className="text-xs font-mono font-bold text-slate-200 truncate block">
-                    {activeReport.latitude.toFixed(4)}, {activeReport.longitude.toFixed(4)}
-                  </span>
-                </div>
+                <UrgencyBadge urgency={selectedReport.urgency} />
               </div>
 
-              {/* AI Dispatch summary */}
-              {activeReport.aiSummary && (
-                <div className="p-3 rounded-lg bg-cyan/10 border border-cyan/30 text-xs text-slate-200 space-y-1">
-                  <div className="flex items-center gap-1.5 text-cyan font-bold text-[11px]">
-                    <Bot className="w-3.5 h-3.5" />
-                    <span>AI ACTION PROTOCOL</span>
-                  </div>
-                  <p className="text-[11px] text-slate-300 leading-relaxed">{activeReport.aiSummary}</p>
-                </div>
-              )}
+              <p className="text-xs text-slate-700 leading-relaxed">{selectedReport.description}</p>
 
-              <button
-                onClick={() => setSelectedReportForModal(activeReport)}
-                className="w-full py-2.5 rounded-lg bg-cyan hover:bg-cyan-glow text-navy-950 font-bold text-xs shadow-lg shadow-cyan/20 transition-all"
-              >
-                Open Full Tactical Dossier
-              </button>
+              <div className="p-3 bg-slate-50 rounded-lg border border-slate-200 text-xs space-y-1 font-mono text-slate-600">
+                <div className="flex justify-between">
+                  <span>Latitude:</span>
+                  <span className="font-bold text-slate-800">{selectedReport.latitude}</span>
+                </div>
+                <div className="flex justify-between">
+                  <span>Longitude:</span>
+                  <span className="font-bold text-slate-800">{selectedReport.longitude}</span>
+                </div>
+                <div className="flex justify-between">
+                  <span>Victims:</span>
+                  <span className="font-bold text-red-600">{selectedReport.peopleAffected}</span>
+                </div>
+                <div className="flex justify-between">
+                  <span>Reporter:</span>
+                  <span className="font-bold text-emerald-700">{selectedReport.reporterDeviceId}</span>
+                </div>
+              </div>
             </div>
           ) : (
-            <div className="h-full flex flex-col items-center justify-center text-center p-6 text-slate-400">
-              <MapPin className="w-8 h-8 text-cyan mb-2" />
-              <p className="text-sm font-semibold text-white">No Incident Selected</p>
-              <p className="text-xs mt-1">Click any pin on the tactical grid to inspect field telemetry.</p>
+            <div className="text-center text-slate-400 p-8 z-10">
+              <AlertTriangle className="w-12 h-12 text-slate-300 mx-auto mb-3" />
+              <h3 className="text-sm font-bold text-slate-600">Select an Emergency Pin</h3>
+              <p className="text-xs text-slate-400 mt-1">Tap any report on the left panel to inspect GPS coordinates.</p>
             </div>
           )}
         </div>
       </div>
-
-      {/* Details Modal */}
-      <IncidentDetailsModal report={selectedReportForModal} onClose={() => setSelectedReportForModal(null)} />
     </div>
   );
 };

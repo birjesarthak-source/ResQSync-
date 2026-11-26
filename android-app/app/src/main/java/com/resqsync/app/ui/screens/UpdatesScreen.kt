@@ -12,8 +12,9 @@ import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
 import com.resqsync.app.models.RescueUpdate
-import com.resqsync.app.ui.theme.ResQSyncCyan
+import com.resqsync.app.ui.theme.ResQSyncPrimaryBlue
 import com.resqsync.app.ui.theme.ResQSyncSuccessGreen
+import com.resqsync.app.ui.theme.ResQSyncTextDark
 import java.text.SimpleDateFormat
 import java.util.Date
 import java.util.Locale
@@ -32,7 +33,7 @@ fun UpdatesScreen(
             text = "Rescue & System Updates",
             style = MaterialTheme.typography.headlineMedium,
             fontWeight = FontWeight.Bold,
-            color = Color.White
+            color = ResQSyncTextDark
         )
 
         Text(
@@ -44,7 +45,8 @@ fun UpdatesScreen(
         if (updates.isEmpty()) {
             Card(
                 modifier = Modifier.fillMaxWidth(),
-                shape = RoundedCornerShape(16.dp)
+                shape = RoundedCornerShape(16.dp),
+                colors = CardDefaults.cardColors(containerColor = MaterialTheme.colorScheme.surface)
             ) {
                 Column(
                     modifier = Modifier
@@ -56,7 +58,7 @@ fun UpdatesScreen(
                         text = "No Rescue Broadcasts Yet",
                         style = MaterialTheme.typography.titleMedium,
                         fontWeight = FontWeight.Bold,
-                        color = Color.White
+                        color = ResQSyncTextDark
                     )
                     Spacer(modifier = Modifier.height(8.dp))
                     Text(
@@ -73,7 +75,8 @@ fun UpdatesScreen(
                 items(updates) { update ->
                     Card(
                         modifier = Modifier.fillMaxWidth(),
-                        shape = RoundedCornerShape(14.dp)
+                        shape = RoundedCornerShape(14.dp),
+                        colors = CardDefaults.cardColors(containerColor = MaterialTheme.colorScheme.surface)
                     ) {
                         Column(
                             modifier = Modifier.padding(16.dp),
@@ -88,10 +91,10 @@ fun UpdatesScreen(
                                     text = "Rescue Team Update",
                                     style = MaterialTheme.typography.titleMedium,
                                     fontWeight = FontWeight.Bold,
-                                    color = ResQSyncCyan
+                                    color = ResQSyncPrimaryBlue
                                 )
                                 Surface(
-                                    color = ResQSyncSuccessGreen.copy(alpha = 0.2f),
+                                    color = ResQSyncSuccessGreen.copy(alpha = 0.15f),
                                     shape = RoundedCornerShape(12.dp)
                                 ) {
                                     Text(
@@ -107,7 +110,7 @@ fun UpdatesScreen(
                             Text(
                                 text = update.message,
                                 style = MaterialTheme.typography.bodyMedium,
-                                color = Color.White
+                                color = ResQSyncTextDark
                             )
 
                             Text(

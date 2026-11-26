@@ -36,6 +36,7 @@ export interface EmergencyReport {
   assignedTeamId?: string;
   assignedTeamName?: string;
   isSimulatedMock?: boolean;
+  voiceBase64?: string;
 }
 
 export interface NetworkMessage {

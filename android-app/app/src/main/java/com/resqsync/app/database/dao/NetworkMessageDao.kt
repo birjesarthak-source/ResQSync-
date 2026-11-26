@@ -28,7 +28,7 @@ interface NetworkMessageDao {
     @Query(
         """
         SELECT * FROM network_messages
-        WHERE deliveryStatus IN ('QUEUED', 'SENT_TO_PEER')
+        WHERE deliveryStatus IN ('QUEUED', 'SENT_TO_PEER', 'FORWARDED')
         AND ttlExpiresAt > :currentTime
         ORDER BY createdAt ASC
         """
