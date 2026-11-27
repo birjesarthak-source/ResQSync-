@@ -1,8 +1,9 @@
-import React, { useState, useMemo } from 'react';
+import React, { useState, useEffect } from 'react';
 import { X, MapPin, Users, Bot, Radio, CheckCircle, ShieldAlert, Volume2, Play, Square } from 'lucide-react';
 import { EmergencyReport, ReportStatus } from '../types';
 import { UrgencyBadge, StatusBadge } from './StatusBadge';
 import { formatDate, getIncidentTypeLabel } from '../utils/formatters';
+import { decodeAudioBase64ToWav } from '../utils/audioPlayback';
 import { useIncidents } from '../context/IncidentContext';
 
 interface IncidentDetailsModalProps {
@@ -15,26 +16,46 @@ export const IncidentDetailsModal: React.FC<IncidentDetailsModalProps> = ({ repo
   const [selectedTeamId, setSelectedTeamId] = useState<string>('');
   const [isPlayingAudio, setIsPlayingAudio] = useState<boolean>(false);
   const [activeAudioObj, setActiveAudioObj] = useState<HTMLAudioElement | null>(null);
+  const [audioBlobUrl, setAudioBlobUrl] = useState<string | null>(null);
+  const [isDecodingAudio, setIsDecodingAudio] = useState<boolean>(false);
+  const [audioError, setAudioError] = useState<string | null>(null);
 
-  // Convert Base64 string to audio Blob Object URL for 100% HTML5 browser compatibility
-  const audioBlobUrl = useMemo(() => {
-    if (!report?.voiceBase64) return null;
-    try {
-      const cleanBase64 = report.voiceBase64.trim().replace(/^data:audio\/\w+;base64,/, '').replace(/\s/g, '');
-      const binaryStr = atob(cleanBase64);
-      const bytes = new Uint8Array(binaryStr.length);
-      for (let i = 0; i < binaryStr.length; i++) {
-        bytes[i] = binaryStr.charCodeAt(i);
+  useEffect(() => {
+    let cancelled = false;
+    let objectUrl: string | null = null;
+    setAudioBlobUrl(null);
+    setAudioError(null);
+    setIsDecodingAudio(Boolean(report?.voiceBase64));
+
+    const decodeAudio = async () => {
+      if (!report?.voiceBase64) return;
+      try {
+        const wav = await decodeAudioBase64ToWav(report.voiceBase64);
+        objectUrl = URL.createObjectURL(wav);
+        if (cancelled) {
+          URL.revokeObjectURL(objectUrl);
+          objectUrl = null;
+          return;
+        }
+        setAudioBlobUrl(objectUrl);
+      } catch (err) {
+        console.error('Failed to decode voice memo:', err);
+        if (!cancelled) {
+          setAudioError(err instanceof Error ? err.message : 'Audio decoding failed.');
+        }
+      } finally {
+        if (!cancelled) setIsDecodingAudio(false);
       }
-      // Detect 3GP or MP4
-      const mimeType = cleanBase64.startsWith('AAAA') ? 'audio/3gpp' : 'audio/mp4';
-      const blob = new Blob([bytes], { type: mimeType });
-      return URL.createObjectURL(blob);
-    } catch (err) {
-      console.error('Failed to convert voice Base64 to Blob URL:', err);
-      return null;
-    }
+    };
+
+    void decodeAudio();
+    return () => {
+      cancelled = true;
+      if (objectUrl) URL.revokeObjectURL(objectUrl);
+    };
   }, [report?.voiceBase64]);
+
+  useEffect(() => () => activeAudioObj?.pause(), [activeAudioObj, audioBlobUrl]);
 
   const handleTogglePlayAudio = () => {
     if (!audioBlobUrl) return;
@@ -46,6 +67,12 @@ export const IncidentDetailsModal: React.FC<IncidentDetailsModalProps> = ({ repo
       setActiveAudioObj(null);
     } else {
       const audio = new Audio(audioBlobUrl);
+      audio.onerror = () => {
+        console.error('Browser failed to decode voice memo:', audio.error);
+        setAudioError('This browser cannot decode the attached audio format.');
+        setIsPlayingAudio(false);
+        setActiveAudioObj(null);
+      };
       audio.onended = () => {
         setIsPlayingAudio(false);
         setActiveAudioObj(null);
@@ -55,6 +82,9 @@ export const IncidentDetailsModal: React.FC<IncidentDetailsModalProps> = ({ repo
         setActiveAudioObj(audio);
       }).catch((e) => {
         console.error('Error playing audio memo:', e);
+        setAudioError(e instanceof Error ? e.message : 'Audio playback failed.');
+        setIsPlayingAudio(false);
+        setActiveAudioObj(null);
       });
     }
   };
@@ -115,6 +145,16 @@ export const IncidentDetailsModal: React.FC<IncidentDetailsModalProps> = ({ repo
           </div>
 
           {/* Voice SOS Audio Memo Player */}
+          {isDecodingAudio && (
+            <p className="text-xs text-blue-700">Preparing voice memo playback...</p>
+          )}
+
+          {report.voiceBase64 && !audioBlobUrl && !isDecodingAudio && !audioError && (
+            <p role="alert" className="text-xs text-red-700">
+              The attached voice memo could not be decoded.
+            </p>
+          )}
+
           {audioBlobUrl && (
             <div className="p-4 rounded-xl bg-blue-50 border border-blue-200 space-y-3">
               <div className="flex items-center justify-between">
@@ -148,8 +188,15 @@ export const IncidentDetailsModal: React.FC<IncidentDetailsModalProps> = ({ repo
                 controls
                 src={audioBlobUrl}
                 className="w-full h-10 rounded-lg"
+                onError={(event) => {
+                  console.error('Browser audio element failed:', event.currentTarget.error);
+                  setAudioError('The browser could not play the decoded voice memo.');
+                }}
               />
             </div>
+          )}
+          {audioError && (
+            <p role="alert" className="text-xs text-red-700">{audioError}</p>
           )}
 
           {/* Quick Metrics Grid */}

@@ -73,20 +73,10 @@ class SupabaseSyncManager(
     }
 
     private fun syncSingleReportToCloud(report: EmergencyReport): Boolean {
-        // Primary attempt with all fields including voice_base64
-        val successPrimary = executePostToSupabase(report, includeVoice = true)
-        if (successPrimary) return true
-
-        // Fallback attempt without voice_base64 if column is missing on live Supabase table
-        if (!report.voiceBase64.isNullOrBlank()) {
-            Log.w("ResQSyncSync", "Retrying Supabase POST for report ${report.reportId} without voice_base64 fallback...")
-            return executePostToSupabase(report, includeVoice = false)
-        }
-
-        return false
+        return executePostToSupabase(report)
     }
 
-    private fun executePostToSupabase(report: EmergencyReport, includeVoice: Boolean): Boolean {
+    private fun executePostToSupabase(report: EmergencyReport): Boolean {
         val supabaseUrl = BuildConfig.SUPABASE_URL
         val supabaseKey = BuildConfig.SUPABASE_ANON_KEY
 
@@ -117,7 +107,7 @@ class SupabaseSyncManager(
                 put("ai_summary", report.description)
             }
 
-            if (includeVoice && !report.voiceBase64.isNullOrBlank()) {
+            if (!report.voiceBase64.isNullOrBlank()) {
                 put("voice_base64", report.voiceBase64)
             }
 
@@ -142,12 +132,12 @@ class SupabaseSyncManager(
             val response = httpClient.newCall(request).execute()
             response.use { resp ->
                 val bodyStr = resp.body?.string() ?: ""
-                val isSuccess = resp.isSuccessful || resp.code in 200..299 || resp.code == 409
+                val isSuccess = resp.isSuccessful
                 if (isSuccess) {
                     Log.d("ResQSyncSync", "Report ${report.reportId} posted to Supabase successfully: HTTP ${resp.code}")
                     true
                 } else {
-                    Log.e("ResQSyncSync", "Failed to sync report ${report.reportId} (includeVoice=$includeVoice): HTTP ${resp.code} Body: $bodyStr")
+                    Log.e("ResQSyncSync", "Failed to sync report ${report.reportId}: HTTP ${resp.code} Body: $bodyStr")
                     false
                 }
             }

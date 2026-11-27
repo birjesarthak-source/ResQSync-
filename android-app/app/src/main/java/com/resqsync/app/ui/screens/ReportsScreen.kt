@@ -1,6 +1,5 @@
 package com.resqsync.app.ui.screens
 
-import android.media.MediaPlayer
 import android.util.Base64
 import android.util.Log
 import androidx.compose.foundation.layout.*
@@ -15,14 +14,13 @@ import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.platform.LocalInspectionMode
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
+import com.resqsync.app.audio.AudioRecorderHelper
 import com.resqsync.app.models.EmergencyReport
 import com.resqsync.app.models.LocationSource
 import com.resqsync.app.ui.theme.ResQSyncEmergencyRed
 import com.resqsync.app.ui.theme.ResQSyncPrimaryBlue
 import com.resqsync.app.ui.theme.ResQSyncSuccessGreen
 import com.resqsync.app.ui.theme.ResQSyncTextDark
-import java.io.File
-import java.io.FileOutputStream
 import java.text.SimpleDateFormat
 import java.util.Date
 import java.util.Locale
@@ -34,16 +32,11 @@ fun ReportsScreen(
     val context = LocalContext.current
     val isInspection = LocalInspectionMode.current
     var playingReportId by remember { mutableStateOf<String?>(null) }
-    var mediaPlayer by remember { mutableStateOf<MediaPlayer?>(null) }
+    val audioPlayer = remember(context) { AudioRecorderHelper(context) }
 
-    DisposableEffect(Unit) {
+    DisposableEffect(audioPlayer) {
         onDispose {
-            try {
-                mediaPlayer?.stop()
-                mediaPlayer?.release()
-            } catch (e: Exception) {
-                // ignore
-            }
+            audioPlayer.release()
         }
     }
 
@@ -202,33 +195,17 @@ fun ReportsScreen(
                                         Button(
                                             onClick = {
                                                 if (playingReportId == report.reportId) {
-                                                    try {
-                                                        mediaPlayer?.stop()
-                                                        mediaPlayer?.release()
-                                                    } catch (e: Exception) {
-                                                        // ignore
-                                                    }
-                                                    mediaPlayer = null
+                                                    audioPlayer.stopPlayback()
                                                     playingReportId = null
                                                 } else {
                                                     try {
-                                                        mediaPlayer?.stop()
-                                                        mediaPlayer?.release()
-
                                                         val bytes = Base64.decode(report.voiceBase64, Base64.DEFAULT)
-                                                        val tempAudio = File(context.cacheDir, "play_${report.reportId}.m4a")
-                                                        FileOutputStream(tempAudio).use { it.write(bytes) }
-
-                                                        val player = MediaPlayer().apply {
-                                                            setDataSource(tempAudio.absolutePath)
-                                                            prepare()
-                                                            setOnCompletionListener {
+                                                        playingReportId = report.reportId
+                                                        audioPlayer.startPlayback(bytes) {
+                                                            if (playingReportId == report.reportId) {
                                                                 playingReportId = null
                                                             }
-                                                            start()
                                                         }
-                                                        mediaPlayer = player
-                                                        playingReportId = report.reportId
                                                     } catch (e: Exception) {
                                                         Log.e("ResQSync", "Failed to play voice memo", e)
                                                         playingReportId = null
