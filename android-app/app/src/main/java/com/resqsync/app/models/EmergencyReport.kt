@@ -1,6 +1,7 @@
 package com.resqsync.app.models
 
 import kotlinx.serialization.Serializable
+import kotlinx.serialization.Transient
 
 @Serializable
 data class EmergencyReport(
@@ -20,5 +21,7 @@ data class EmergencyReport(
     val verificationStatus: VerificationStatus,
     val createdAt: Long,
     val expiresAt: Long,
-    val voiceBase64: String? = null
+    val voiceBase64: String? = null,
+    @Transient
+    val localPhotoPaths: List<String> = emptyList()
 )

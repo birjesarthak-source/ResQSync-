@@ -37,6 +37,7 @@ import com.resqsync.app.models.LocationSource
 import com.resqsync.app.models.NearbyPeer
 import com.resqsync.app.models.UrgencyLevel
 import com.resqsync.app.ui.components.OfflineMapPicker
+import com.resqsync.app.ui.components.ReportPhotoPicker
 import com.resqsync.app.ui.theme.ResQSyncEmergencyRed
 import com.resqsync.app.ui.theme.ResQSyncPrimaryBlue
 import com.resqsync.app.ui.theme.ResQSyncSuccessGreen
@@ -78,7 +79,8 @@ fun ReportScreen(
         Int?,
         UrgencyLevel,
         EmergencyLocation,
-        String?
+        String?,
+        List<String>
     ) -> Unit,
     onCancel: () -> Unit,
     nearbyPeers: List<NearbyPeer> = emptyList(),
@@ -122,12 +124,11 @@ fun ReportScreen(
                 recordingSecondsLeft -= 1
             }
             if (isRecordingAudio && recordingSecondsLeft == 0) {
-                recordedAudioFile = audioRecorder?.stopRecording()
-                isRecordingAudio = false
-
-                // Allow the OS 300ms to flush the MP4/3GP bytes to disk completely
+                val stoppedFile = audioRecorder?.stopRecording()
                 delay(300L)
-                cachedVoiceBase64 = audioRecorder?.getAudioBase64(recordedAudioFile)
+                recordedAudioFile = stoppedFile
+                cachedVoiceBase64 = audioRecorder?.getAudioBase64(stoppedFile)
+                isRecordingAudio = false
             }
         }
     }
@@ -142,6 +143,8 @@ fun ReportScreen(
     var description by remember { mutableStateOf("") }
     var peopleAffected by remember { mutableStateOf("") }
     var selectedUrgency by remember { mutableStateOf(UrgencyLevel.HIGH) }
+    var selectedPhotoPaths by remember { mutableStateOf(emptyList<String>()) }
+    var isImportingPhotos by remember { mutableStateOf(false) }
 
     // Active location state
     var activeLocation by remember { mutableStateOf(EmergencyLocation()) }
@@ -209,13 +212,13 @@ fun ReportScreen(
         // Header Title
         Column(verticalArrangement = Arrangement.spacedBy(4.dp)) {
             Text(
-                text = "Report Emergency (SOS)",
+                text = "Report an emergency",
                 style = MaterialTheme.typography.headlineMedium,
                 fontWeight = FontWeight.ExtraBold,
                 color = ResQSyncTextDark
             )
             Text(
-                text = "Provide details & location for immediate offline mesh dispatch.",
+                text = "Add the details that can help responders find you.",
                 style = MaterialTheme.typography.bodyMedium,
                 color = Color(0xFF64748B)
             )
@@ -228,68 +231,69 @@ fun ReportScreen(
             colors = CardDefaults.cardColors(containerColor = Color.White),
             elevation = CardDefaults.cardElevation(defaultElevation = 1.dp)
         ) {
-            Column(
-                modifier = Modifier.padding(16.dp),
-                verticalArrangement = Arrangement.spacedBy(12.dp)
-            ) {
-                Text(
-                    text = "Select Incident Type",
-                    style = MaterialTheme.typography.titleMedium,
-                    fontWeight = FontWeight.Bold,
-                    color = ResQSyncTextDark
-                )
+            BoxWithConstraints(modifier = Modifier.fillMaxWidth()) {
+                val categoryColumns = if (maxWidth < 320.dp) 1 else 2
+                Column(
+                    modifier = Modifier.padding(16.dp),
+                    verticalArrangement = Arrangement.spacedBy(12.dp)
+                ) {
+                    Text(
+                        text = "Select Incident Type",
+                        style = MaterialTheme.typography.titleMedium,
+                        fontWeight = FontWeight.Bold,
+                        color = ResQSyncTextDark
+                    )
 
-                // 2-column Grid for Incident Categories
-                INCIDENT_TYPES_INFO.chunked(2).forEach { rowItems ->
-                    Row(
-                        modifier = Modifier.fillMaxWidth(),
-                        horizontalArrangement = Arrangement.spacedBy(10.dp)
-                    ) {
-                        rowItems.forEach { info ->
-                            val isSelected = selectedIncident == info.type
-                            val borderColor by animateColorAsState(
-                                if (isSelected) info.activeColor else Color(0xFFE2E8F0),
-                                label = "border"
-                            )
-                            val bgColor by animateColorAsState(
-                                if (isSelected) info.activeBg else Color.White,
-                                label = "bg"
-                            )
+                    INCIDENT_TYPES_INFO.chunked(categoryColumns).forEach { rowItems ->
+                        Row(
+                            modifier = Modifier.fillMaxWidth(),
+                            horizontalArrangement = Arrangement.spacedBy(10.dp)
+                        ) {
+                            rowItems.forEach { info ->
+                                val isSelected = selectedIncident == info.type
+                                val borderColor by animateColorAsState(
+                                    if (isSelected) info.activeColor else Color(0xFFE2E8F0),
+                                    label = "border"
+                                )
+                                val bgColor by animateColorAsState(
+                                    if (isSelected) info.activeBg else Color.White,
+                                    label = "bg"
+                                )
 
-                            Box(
-                                modifier = Modifier
-                                    .weight(1f)
-                                    .clip(RoundedCornerShape(12.dp))
-                                    .background(bgColor)
-                                    .border(
-                                        width = if (isSelected) 2.dp else 1.dp,
-                                        color = borderColor,
-                                        shape = RoundedCornerShape(12.dp)
-                                    )
-                                    .clickable { selectedIncident = info.type }
-                                    .padding(horizontal = 12.dp, vertical = 12.dp),
-                                contentAlignment = Alignment.Center
-                            ) {
-                                Row(
-                                    verticalAlignment = Alignment.CenterVertically,
-                                    horizontalArrangement = Arrangement.spacedBy(8.dp)
+                                Box(
+                                    modifier = Modifier
+                                        .weight(1f)
+                                        .clip(RoundedCornerShape(12.dp))
+                                        .background(bgColor)
+                                        .border(
+                                            width = if (isSelected) 2.dp else 1.dp,
+                                            color = borderColor,
+                                            shape = RoundedCornerShape(12.dp)
+                                        )
+                                        .clickable { selectedIncident = info.type }
+                                        .padding(horizontal = 12.dp, vertical = 12.dp),
+                                    contentAlignment = Alignment.Center
                                 ) {
-                                    Text(text = info.icon, fontSize = 20.sp)
-                                    Text(
-                                        text = info.title,
-                                        fontSize = 13.sp,
-                                        fontWeight = if (isSelected) FontWeight.Bold else FontWeight.Medium,
-                                        color = if (isSelected) info.activeColor else ResQSyncTextDark,
-                                        maxLines = 1,
-                                        overflow = TextOverflow.Ellipsis
-                                    )
+                                    Column(
+                                        horizontalAlignment = Alignment.CenterHorizontally,
+                                        verticalArrangement = Arrangement.spacedBy(4.dp)
+                                    ) {
+                                        Text(text = info.icon, fontSize = 20.sp)
+                                        Text(
+                                            text = info.title,
+                                            fontSize = 13.sp,
+                                            fontWeight = if (isSelected) FontWeight.Bold else FontWeight.Medium,
+                                            color = if (isSelected) info.activeColor else ResQSyncTextDark,
+                                            maxLines = 2,
+                                            textAlign = TextAlign.Center
+                                        )
+                                    }
                                 }
                             }
-                        }
 
-                        // Fill odd row space if necessary
-                        if (rowItems.size == 1) {
-                            Spacer(modifier = Modifier.weight(1f))
+                            if (categoryColumns > 1 && rowItems.size == 1) {
+                                Spacer(modifier = Modifier.weight(1f))
+                            }
                         }
                     }
                 }
@@ -309,16 +313,16 @@ fun ReportScreen(
                 modifier = Modifier.padding(16.dp),
                 verticalArrangement = Arrangement.spacedBy(10.dp)
             ) {
-                Row(
+                Column(
                     modifier = Modifier.fillMaxWidth(),
-                    horizontalArrangement = Arrangement.SpaceBetween,
-                    verticalAlignment = Alignment.CenterVertically
+                    verticalArrangement = Arrangement.spacedBy(6.dp)
                 ) {
                     Text(
                         text = "🎤 Voice SOS Audio Memo (Optional)",
                         style = MaterialTheme.typography.titleMedium,
                         fontWeight = FontWeight.Bold,
-                        color = if (isRecordingAudio) ResQSyncEmergencyRed else ResQSyncTextDark
+                        color = if (isRecordingAudio) ResQSyncEmergencyRed else ResQSyncTextDark,
+                        maxLines = 2
                     )
 
                     if (isRecordingAudio) {
@@ -358,54 +362,11 @@ fun ReportScreen(
                     )
                 }
 
-                Row(
-                    modifier = Modifier.fillMaxWidth(),
-                    horizontalArrangement = Arrangement.spacedBy(10.dp)
-                ) {
-                    Button(
-                        onClick = {
-                            val hasMicPermission = ContextCompat.checkSelfPermission(
-                                context,
-                                android.Manifest.permission.RECORD_AUDIO
-                            ) == PackageManager.PERMISSION_GRANTED
-
-                            if (!hasMicPermission) {
-                                audioPermissionLauncher.launch(
-                                    arrayOf(
-                                        android.Manifest.permission.RECORD_AUDIO,
-                                        android.Manifest.permission.POST_NOTIFICATIONS
-                                    )
-                                )
-                            } else {
-                                if (isRecordingAudio) {
-                                    coroutineScope.launch {
-                                        recordedAudioFile = audioRecorder?.stopRecording()
-                                        isRecordingAudio = false
-                                        // Allow the OS 300ms to flush the bytes to disk completely
-                                        delay(300L)
-                                        cachedVoiceBase64 = audioRecorder?.getAudioBase64(recordedAudioFile)
-                                    }
-                                } else {
-                                    recordedAudioFile = audioRecorder?.startRecording(10000L)
-                                    isRecordingAudio = (recordedAudioFile != null && recordedAudioFile?.exists() == true)
-                                    cachedVoiceBase64 = null
-                                }
-                            }
-                        },
-                        modifier = Modifier.weight(1f),
-                        colors = ButtonDefaults.buttonColors(
-                            containerColor = if (isRecordingAudio) ResQSyncEmergencyRed else ResQSyncPrimaryBlue
-                        ),
-                        shape = RoundedCornerShape(12.dp)
+                if (recordedAudioFile != null && recordedAudioFile?.exists() == true && !isRecordingAudio) {
+                    Row(
+                        modifier = Modifier.fillMaxWidth(),
+                        horizontalArrangement = Arrangement.spacedBy(10.dp)
                     ) {
-                        Text(
-                            text = if (isRecordingAudio) "⏹ Stop Recording" else "🎙️ Record 10s Memo",
-                            color = Color.White,
-                            fontWeight = FontWeight.Bold
-                        )
-                    }
-
-                    if (recordedAudioFile != null && recordedAudioFile?.exists() == true && !isRecordingAudio) {
                         Button(
                             onClick = {
                                 if (isPlayingAudio) {
@@ -423,7 +384,7 @@ fun ReportScreen(
                             shape = RoundedCornerShape(12.dp)
                         ) {
                             Text(
-                                text = if (isPlayingAudio) "⏹ Stop" else "▶️ Play Voice SOS",
+                                text = if (isPlayingAudio) "Stop" else "Play",
                                 color = Color.White,
                                 fontWeight = FontWeight.Bold
                             )
@@ -437,10 +398,52 @@ fun ReportScreen(
                                 cachedVoiceBase64 = null
                                 isPlayingAudio = false
                             },
+                            modifier = Modifier.weight(1f),
                             shape = RoundedCornerShape(12.dp)
                         ) {
-                            Text("🗑 Clear", color = ResQSyncEmergencyRed)
+                            Text("Clear", color = ResQSyncEmergencyRed)
                         }
+                    }
+                } else {
+                    Button(
+                        onClick = {
+                            val hasMicPermission = ContextCompat.checkSelfPermission(
+                                context,
+                                android.Manifest.permission.RECORD_AUDIO
+                            ) == PackageManager.PERMISSION_GRANTED
+
+                            if (!hasMicPermission) {
+                                audioPermissionLauncher.launch(
+                                    arrayOf(
+                                        android.Manifest.permission.RECORD_AUDIO,
+                                        android.Manifest.permission.POST_NOTIFICATIONS
+                                    )
+                                )
+                            } else if (isRecordingAudio) {
+                                coroutineScope.launch {
+                                    val stoppedFile = audioRecorder?.stopRecording()
+                                    delay(300L)
+                                    recordedAudioFile = stoppedFile
+                                    cachedVoiceBase64 = audioRecorder?.getAudioBase64(stoppedFile)
+                                    isRecordingAudio = false
+                                }
+                            } else {
+                                recordedAudioFile = audioRecorder?.startRecording(10000L)
+                                isRecordingAudio = (recordedAudioFile != null && recordedAudioFile?.exists() == true)
+                                cachedVoiceBase64 = null
+                            }
+                        },
+                        modifier = Modifier.fillMaxWidth(),
+                        colors = ButtonDefaults.buttonColors(
+                            containerColor = if (isRecordingAudio) ResQSyncEmergencyRed else ResQSyncPrimaryBlue
+                        ),
+                        shape = RoundedCornerShape(12.dp)
+                    ) {
+                        Text(
+                            text = if (isRecordingAudio) "Stop recording" else "Record voice memo",
+                            color = Color.White,
+                            fontWeight = FontWeight.Bold
+                        )
                     }
                 }
             }
@@ -488,6 +491,11 @@ fun ReportScreen(
             }
         }
 
+        ReportPhotoPicker(
+            onPhotoPathsChanged = { selectedPhotoPaths = it },
+            onImportingChanged = { isImportingPhotos = it }
+        )
+
         // Section 4: Urgency Level & People Affected
         Card(
             modifier = Modifier.fillMaxWidth(),
@@ -507,10 +515,8 @@ fun ReportScreen(
                 )
 
                 // Urgency Selector Buttons
-                Row(
-                    modifier = Modifier.fillMaxWidth(),
-                    horizontalArrangement = Arrangement.spacedBy(8.dp)
-                ) {
+                BoxWithConstraints(modifier = Modifier.fillMaxWidth()) {
+                    val urgencyColumns = if (maxWidth < 340.dp) 2 else 4
                     val urgencies = listOf(
                         UrgencyLevel.LOW to Color(0xFF16A34A),
                         UrgencyLevel.MEDIUM to Color(0xFFD97706),
@@ -518,28 +524,46 @@ fun ReportScreen(
                         UrgencyLevel.CRITICAL to Color(0xFFDC2626)
                     )
 
-                    urgencies.forEach { (urgency, color) ->
-                        val isSelected = selectedUrgency == urgency
-                        val chipBg = if (isSelected) color.copy(alpha = 0.15f) else Color(0xFFF8FAFC)
-                        val chipBorder = if (isSelected) color else Color(0xFFCBD5E1)
+                    Column(verticalArrangement = Arrangement.spacedBy(8.dp)) {
+                        urgencies.chunked(urgencyColumns).forEach { urgencyRow ->
+                            Row(
+                                modifier = Modifier.fillMaxWidth(),
+                                horizontalArrangement = Arrangement.spacedBy(8.dp)
+                            ) {
+                                urgencyRow.forEach { (urgency, color) ->
+                                    val isSelected = selectedUrgency == urgency
+                                    val chipBg = if (isSelected) color.copy(alpha = 0.15f) else Color(0xFFF8FAFC)
+                                    val chipBorder = if (isSelected) color else Color(0xFFCBD5E1)
 
-                        Box(
-                            modifier = Modifier
-                                .weight(1f)
-                                .clip(RoundedCornerShape(10.dp))
-                                .background(chipBg)
-                                .border(width = if (isSelected) 2.dp else 1.dp, color = chipBorder, shape = RoundedCornerShape(10.dp))
-                                .clickable { selectedUrgency = urgency }
-                                .padding(vertical = 10.dp),
-                            contentAlignment = Alignment.Center
-                        ) {
-                            Text(
-                                text = urgency.name,
-                                fontSize = 11.sp,
-                                fontWeight = if (isSelected) FontWeight.ExtraBold else FontWeight.Medium,
-                                color = if (isSelected) color else Color(0xFF475569),
-                                textAlign = TextAlign.Center
-                            )
+                                    Box(
+                                        modifier = Modifier
+                                            .weight(1f)
+                                            .clip(RoundedCornerShape(10.dp))
+                                            .background(chipBg)
+                                            .border(
+                                                width = if (isSelected) 2.dp else 1.dp,
+                                                color = chipBorder,
+                                                shape = RoundedCornerShape(10.dp)
+                                            )
+                                            .clickable { selectedUrgency = urgency }
+                                            .padding(vertical = 10.dp),
+                                        contentAlignment = Alignment.Center
+                                    ) {
+                                        Text(
+                                            text = urgency.name,
+                                            fontSize = 11.sp,
+                                            fontWeight = if (isSelected) FontWeight.ExtraBold else FontWeight.Medium,
+                                            color = if (isSelected) color else Color(0xFF475569),
+                                            textAlign = TextAlign.Center,
+                                            maxLines = 1,
+                                            softWrap = false
+                                        )
+                                    }
+                                }
+                                if (urgencyRow.size < urgencyColumns) {
+                                    Spacer(modifier = Modifier.weight(1f))
+                                }
+                            }
                         }
                     }
                 }
@@ -553,7 +577,7 @@ fun ReportScreen(
                         }
                     },
                     modifier = Modifier.fillMaxWidth(),
-                    label = { Text("Victims / People Affected (Optional)", fontSize = 12.sp) },
+                    label = { Text("People affected (optional)", fontSize = 12.sp) },
                     placeholder = { Text("e.g. 3", color = Color(0xFF94A3B8)) },
                     keyboardOptions = KeyboardOptions(keyboardType = KeyboardType.Number),
                     shape = RoundedCornerShape(12.dp),
@@ -593,13 +617,12 @@ fun ReportScreen(
                     modifier = Modifier.fillMaxWidth()
                 ) {
                     Column(modifier = Modifier.padding(12.dp)) {
-                        Row(
-                            horizontalArrangement = Arrangement.SpaceBetween,
+                        Column(
                             modifier = Modifier.fillMaxWidth(),
-                            verticalAlignment = Alignment.CenterVertically
+                            verticalArrangement = Arrangement.spacedBy(4.dp)
                         ) {
                             Text(
-                                text = "Source: ${activeLocation.source.name}",
+                                text = "Source · ${activeLocation.source.name.replace('_', ' ')}",
                                 style = MaterialTheme.typography.labelMedium,
                                 fontWeight = FontWeight.Bold,
                                 color = ResQSyncPrimaryBlue
@@ -709,36 +732,33 @@ fun ReportScreen(
 
                     LocationMethodTab.MANUAL_ADDRESS -> {
                         Column(verticalArrangement = Arrangement.spacedBy(8.dp)) {
-                            Row(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
+                            Column(verticalArrangement = Arrangement.spacedBy(8.dp)) {
                                 OutlinedTextField(
                                     value = cityText,
                                     onValueChange = { cityText = it },
                                     label = { Text("City / Village", fontSize = 11.sp) },
-                                    modifier = Modifier.weight(1f),
+                                    modifier = Modifier.fillMaxWidth(),
                                     singleLine = true
                                 )
                                 OutlinedTextField(
                                     value = areaText,
                                     onValueChange = { areaText = it },
                                     label = { Text("Area / Locality", fontSize = 11.sp) },
-                                    modifier = Modifier.weight(1f),
+                                    modifier = Modifier.fillMaxWidth(),
                                     singleLine = true
                                 )
-                            }
-
-                            Row(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
                                 OutlinedTextField(
                                     value = streetText,
                                     onValueChange = { streetText = it },
                                     label = { Text("Street / Road", fontSize = 11.sp) },
-                                    modifier = Modifier.weight(1f),
+                                    modifier = Modifier.fillMaxWidth(),
                                     singleLine = true
                                 )
                                 OutlinedTextField(
                                     value = landmarkText,
                                     onValueChange = { landmarkText = it },
                                     label = { Text("Landmark / Shelter", fontSize = 11.sp) },
-                                    modifier = Modifier.weight(1f),
+                                    modifier = Modifier.fillMaxWidth(),
                                     singleLine = true
                                 )
                             }
@@ -805,21 +825,32 @@ fun ReportScreen(
                     peopleAffected.toIntOrNull(),
                     selectedUrgency,
                     activeLocation,
-                    voiceBase64Payload
+                    voiceBase64Payload,
+                    selectedPhotoPaths
                 )
             },
             modifier = Modifier
                 .fillMaxWidth()
                 .height(54.dp),
+            enabled = !isImportingPhotos,
             colors = ButtonDefaults.buttonColors(containerColor = ResQSyncEmergencyRed),
             shape = RoundedCornerShape(14.dp)
         ) {
-            Text("🆘 SUBMIT EMERGENCY SOS ALERT NOW", fontWeight = FontWeight.ExtraBold, fontSize = 15.sp, color = Color.White)
+            Text(
+                text = if (isImportingPhotos) "Preparing photos…" else "Submit emergency report",
+                fontWeight = FontWeight.Bold,
+                fontSize = 15.sp,
+                color = Color.White
+            )
         }
 
         OutlinedButton(
-            onClick = onCancel,
+            onClick = {
+                selectedPhotoPaths.forEach { File(it).delete() }
+                onCancel()
+            },
             modifier = Modifier.fillMaxWidth(),
+            enabled = !isImportingPhotos,
             shape = RoundedCornerShape(12.dp)
         ) {
             Text("Cancel & Return", color = Color(0xFF64748B))
@@ -833,7 +864,7 @@ fun ReportScreen(
 @Composable
 fun ReportScreenPreview() {
     ReportScreen(
-        onSubmit = { _, _, _, _, _, _ -> },
+        onSubmit = { _, _, _, _, _, _, _ -> },
         onCancel = {}
     )
 }

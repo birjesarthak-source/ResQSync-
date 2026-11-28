@@ -2,7 +2,7 @@ package com.resqsync.app.ui.theme
 
 import androidx.compose.ui.graphics.Color
 
-val ResQSyncLightBg = Color(0xFFF8FAFC)
+val ResQSyncLightBg = Color(0xFFF4F7FB)
 val ResQSyncLightSurface = Color(0xFFFFFFFF)
 val ResQSyncLightBorder = Color(0xFFE2E8F0)
 

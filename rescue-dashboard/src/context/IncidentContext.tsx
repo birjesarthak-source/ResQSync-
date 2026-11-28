@@ -38,12 +38,18 @@ interface IncidentContextType {
 
   // Demo Mode controls (separated from production data flow)
   isDemoMode: boolean;
+  isSupabaseAuth: boolean;
   toggleDemoMode: () => void;
 
   // Data Refresh actions
   refetchReports: () => Promise<void>;
   refetchMessages: () => Promise<void>;
   updateReportStatus: (reportId: string, status: ReportStatus) => Promise<void>;
+  updateReportCoordinates: (
+    reportId: string,
+    latitude: number,
+    longitude: number
+  ) => Promise<{ error: string | null }>;
   assignTeamToReport: (reportId: string, teamId: string) => void;
   addRescueUpdate: (reportId: string, teamId: string, message: string) => void;
 }
@@ -143,6 +149,28 @@ export const IncidentProvider: React.FC<{ children: React.ReactNode }> = ({ chil
     );
   };
 
+  const updateReportCoordinates = async (
+    reportId: string,
+    latitude: number,
+    longitude: number
+  ): Promise<{ error: string | null }> => {
+    if (!isSupabaseAuth || isDemoMode) {
+      return { error: 'Sign in with a Supabase responder account to save report coordinates.' };
+    }
+
+    const result = await incidentService.updateReportCoordinates(reportId, latitude, longitude);
+    if (!result.error) {
+      setReports((prev) =>
+        prev.map((report) =>
+          report.reportId === reportId
+            ? { ...report, latitude, longitude }
+            : report
+        )
+      );
+    }
+    return result;
+  };
+
   const assignTeamToReport = (reportId: string, teamId: string) => {
     const team = teams.find((t) => t.teamId === teamId);
     if (!team) return;
@@ -229,11 +257,13 @@ export const IncidentProvider: React.FC<{ children: React.ReactNode }> = ({ chil
         isRealtimeConnected,
 
         isDemoMode,
+        isSupabaseAuth,
         toggleDemoMode,
 
         refetchReports: fetchReports,
         refetchMessages: fetchMessages,
         updateReportStatus,
+        updateReportCoordinates,
         assignTeamToReport,
         addRescueUpdate
       }}

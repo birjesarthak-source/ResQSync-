@@ -250,8 +250,16 @@ class MainActivity : ComponentActivity() {
                                     connectionManager.sendLocationRequest(endpointId, getResQSyncDeviceId())
                                 },
                                 receivedNearbyLocation = receivedNearbyLocation,
-                                onSubmitReport = { incidentType, description, peopleAffected, urgency, emergencyLocation, voiceBase64 ->
-                                    saveEmergencyReport(incidentType, description, peopleAffected, urgency, emergencyLocation, voiceBase64)
+                                onSubmitReport = { incidentType, description, peopleAffected, urgency, emergencyLocation, voiceBase64, photoPaths ->
+                                    saveEmergencyReport(
+                                        incidentType,
+                                        description,
+                                        peopleAffected,
+                                        urgency,
+                                        emergencyLocation,
+                                        voiceBase64,
+                                        photoPaths
+                                    )
                                 }
                             )
 
@@ -366,7 +374,8 @@ class MainActivity : ComponentActivity() {
         peopleAffected: Int?,
         urgency: UrgencyLevel,
         emergencyLocation: EmergencyLocation = EmergencyLocation(),
-        voiceBase64: String? = null
+        voiceBase64: String? = null,
+        photoPaths: List<String> = emptyList()
     ) {
         val currentTime = System.currentTimeMillis()
         val deviceId = getResQSyncDeviceId()
@@ -384,7 +393,8 @@ class MainActivity : ComponentActivity() {
             verificationStatus = VerificationStatus.UNVERIFIED,
             createdAt = currentTime,
             expiresAt = currentTime + ResQSyncConstants.MESSAGE_EXPIRY_HOURS * 60L * 60L * 1000L,
-            voiceBase64 = voiceBase64
+            voiceBase64 = voiceBase64,
+            localPhotoPaths = photoPaths
         )
 
         lifecycleScope.launch {

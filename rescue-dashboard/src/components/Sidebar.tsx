@@ -4,13 +4,9 @@ import {
   LayoutDashboard,
   AlertTriangle,
   MapPin,
-  Radio,
-  Network,
   Users,
   Settings,
   ShieldAlert,
-  BarChart2,
-  LayoutGrid,
   ChevronLeft,
   ChevronRight,
   X
@@ -30,14 +26,10 @@ export const Sidebar: React.FC<SidebarProps> = ({
   onCloseMobile
 }) => {
   const navItems = [
-    { name: 'Dashboard Overview', path: '/', icon: LayoutDashboard },
+    { name: 'Overview', path: '/', icon: LayoutDashboard },
     { name: 'Emergency Reports', path: '/reports', icon: AlertTriangle },
-    { name: 'Incident Map', path: '/map', icon: MapPin },
-    { name: 'Dispatch Board', path: '/dispatch', icon: LayoutGrid },
-    { name: 'Analytics', path: '/analytics', icon: BarChart2 },
-    { name: 'Rescue Updates', path: '/updates', icon: Radio },
-    { name: 'Network Monitoring', path: '/network', icon: Network },
-    { name: 'Team Management', path: '/teams', icon: Users },
+    { name: 'Live Map', path: '/map', icon: MapPin },
+    { name: 'Rescue Teams', path: '/teams', icon: Users },
     { name: 'Settings', path: '/settings', icon: Settings },
   ];
 
@@ -53,14 +45,14 @@ export const Sidebar: React.FC<SidebarProps> = ({
 
       {/* Sidebar Container */}
       <aside
-        className={`fixed lg:static top-0 bottom-0 left-0 z-50 flex flex-col bg-white border-r border-slate-200 transition-all duration-300 ease-in-out shadow-sm ${
+        className={`fixed lg:static top-0 bottom-0 left-0 z-50 flex flex-col bg-white border-r border-slate-200/80 transition-all duration-300 ease-in-out ${
           isCollapsed ? 'w-20' : 'w-64'
         } ${isMobileOpen ? 'translate-x-0' : '-translate-x-full lg:translate-x-0'}`}
       >
         {/* Brand Header */}
-        <div className="h-16 flex items-center justify-between px-4 border-b border-slate-200 bg-slate-50/80">
+        <div className="h-20 flex items-center justify-between px-5 border-b border-slate-100">
           <div className="flex items-center gap-3 overflow-hidden">
-            <div className="w-10 h-10 rounded-lg bg-blue-600 flex items-center justify-center font-bold text-white shadow-md shadow-blue-500/20 shrink-0">
+            <div className="w-11 h-11 rounded-xl bg-blue-600 flex items-center justify-center font-bold text-white shadow-md shadow-blue-600/20 shrink-0">
               <ShieldAlert className="w-6 h-6 text-white" />
             </div>
             {!isCollapsed && (
@@ -68,8 +60,8 @@ export const Sidebar: React.FC<SidebarProps> = ({
                 <span className="font-extrabold text-slate-800 text-base tracking-wide flex items-center gap-1.5">
                   ResQSync <span className="text-blue-600 text-xs font-bold px-1.5 py-0.5 rounded bg-blue-50 border border-blue-200">AI</span>
                 </span>
-                <span className="text-[10px] uppercase font-mono tracking-wider text-slate-500 block">
-                  Rescue Command Deck
+                <span className="text-xs text-slate-500 block mt-1">
+                  Rescue command
                 </span>
               </div>
             )}

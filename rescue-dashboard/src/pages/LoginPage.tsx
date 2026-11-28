@@ -36,12 +36,12 @@ export const LoginPage: React.FC = () => {
   };
 
   return (
-    <div className="min-h-screen w-screen flex flex-col justify-center items-center bg-slate-50 p-4 relative overflow-hidden font-sans text-slate-800">
+    <div className="min-h-screen w-screen flex flex-col justify-center items-center bg-[#f4f7fb] p-4 relative overflow-hidden font-sans text-slate-800">
       {/* Background Subtle Grid Pattern */}
-      <div className="absolute inset-0 bg-[radial-gradient(#cbd5e1_1px,transparent_1px)] [background-size:24px_24px] opacity-40 pointer-events-none" />
+      <div className="absolute inset-0 bg-[radial-gradient(circle_at_top_left,_rgba(37,99,235,0.10),_transparent_32%),radial-gradient(circle_at_bottom_right,_rgba(14,165,233,0.08),_transparent_28%)] pointer-events-none" />
 
       {/* Login Card */}
-      <div className="w-full max-w-md bg-white border border-slate-200 rounded-2xl shadow-xl p-6 sm:p-8 z-10 relative">
+      <div className="w-full max-w-md bg-white border border-slate-200/80 rounded-3xl shadow-[0_24px_60px_rgba(15,23,42,0.12)] p-6 sm:p-8 z-10 relative">
         {/* Brand Header */}
         <div className="text-center mb-6">
           <div className="inline-flex w-14 h-14 rounded-2xl bg-blue-600 items-center justify-center text-white shadow-lg shadow-blue-500/30 mb-3">

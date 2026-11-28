@@ -1,5 +1,7 @@
 package com.resqsync.app.database.entity
 
+import android.util.Log
+import androidx.room.ColumnInfo
 import androidx.room.Entity
 import androidx.room.PrimaryKey
 import com.resqsync.app.models.EmergencyLocation
@@ -8,6 +10,8 @@ import com.resqsync.app.models.IncidentType
 import com.resqsync.app.models.LocationSource
 import com.resqsync.app.models.UrgencyLevel
 import com.resqsync.app.models.VerificationStatus
+import org.json.JSONArray
+import org.json.JSONException
 
 @Entity(tableName = "emergency_reports")
 data class EmergencyReportEntity(
@@ -53,7 +57,10 @@ data class EmergencyReportEntity(
 
     val locationSourceDeviceId: String? = null,
 
-    val voiceBase64: String? = null
+    val voiceBase64: String? = null,
+
+    @ColumnInfo(defaultValue = "'[]'")
+    val photoPaths: String = "[]"
 )
 
 fun EmergencyReportEntity.toEmergencyReport(): EmergencyReport {
@@ -83,7 +90,8 @@ fun EmergencyReportEntity.toEmergencyReport(): EmergencyReport {
         verificationStatus = try { VerificationStatus.valueOf(verificationStatus) } catch (e: Exception) { VerificationStatus.UNVERIFIED },
         createdAt = createdAt,
         expiresAt = expiresAt,
-        voiceBase64 = voiceBase64
+        voiceBase64 = voiceBase64,
+        localPhotoPaths = parsePhotoPaths(photoPaths)
     )
 }
 
@@ -109,6 +117,19 @@ fun EmergencyReport.toEntity(isSyncedToCloud: Boolean = false, aiSummary: String
         locationAddress = location.address,
         locationLandmark = location.landmark,
         locationSourceDeviceId = location.sourceDeviceId,
-        voiceBase64 = voiceBase64
+        voiceBase64 = voiceBase64,
+        photoPaths = JSONArray(localPhotoPaths).toString()
     )
+}
+
+private fun parsePhotoPaths(json: String): List<String> {
+    if (json.isBlank()) return emptyList()
+
+    return try {
+        val paths = JSONArray(json)
+        List(paths.length()) { index -> paths.getString(index) }
+    } catch (e: JSONException) {
+        Log.e("ResQSync", "Failed to read local photo attachments from report", e)
+        emptyList()
+    }
 }

@@ -4,6 +4,8 @@ package com.resqsync.app.ui.screens
 import androidx.compose.foundation.layout.*
 import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.foundation.lazy.items
+import androidx.compose.foundation.shape.RoundedCornerShape
+import androidx.compose.foundation.background
 import androidx.compose.material3.*
 import androidx.compose.runtime.Composable
 import androidx.compose.ui.Alignment
@@ -12,6 +14,8 @@ import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
 
 import com.resqsync.app.models.NearbyPeer
+import com.resqsync.app.ui.theme.ResQSyncTextDark
+import androidx.compose.ui.graphics.Color
 
 @Composable
 fun NetworkScreen(
@@ -26,12 +30,13 @@ fun NetworkScreen(
     Column(
         modifier = Modifier
             .fillMaxSize()
+            .background(Color(0xFFF8FAFC))
             .padding(18.dp),
         verticalArrangement = Arrangement.spacedBy(16.dp)
     ) {
 
         Text(
-            text = "Nearby Network",
+            text = "Nearby network",
             style = MaterialTheme.typography.headlineMedium,
             fontWeight = FontWeight.Bold
         )

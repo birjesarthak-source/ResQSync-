@@ -2,6 +2,8 @@ package com.resqsync.app.ui.navigation
 
 import androidx.compose.foundation.layout.*
 import androidx.compose.material3.*
+import androidx.compose.material.icons.Icons
+import androidx.compose.material.icons.filled.*
 import androidx.compose.runtime.*
 import androidx.compose.ui.Modifier
 
@@ -56,7 +58,8 @@ fun AppNavigation(
         Int?,
         UrgencyLevel,
         EmergencyLocation,
-        String?
+        String?,
+        List<String>
     ) -> Unit
 ) {
 
@@ -87,7 +90,16 @@ fun AppNavigation(
                             },
 
                             icon = {
-                                Text(tab.symbol)
+                                Icon(
+                                    imageVector = when (tab) {
+                                        AppTab.HOME -> Icons.Default.Home
+                                        AppTab.REPORTS -> Icons.Default.Assessment
+                                        AppTab.NETWORK -> Icons.Default.Hub
+                                        AppTab.UPDATES -> Icons.Default.Campaign
+                                        AppTab.SETTINGS -> Icons.Default.Settings
+                                    },
+                                    contentDescription = tab.title
+                                )
                             },
 
                             label = {
@@ -117,7 +129,8 @@ fun AppNavigation(
                             peopleAffected,
                             urgency,
                             emergencyLocation,
-                            voiceBase64 ->
+                            voiceBase64,
+                            photoPaths ->
 
                         onSubmitReport(
                             incidentType,
@@ -125,7 +138,8 @@ fun AppNavigation(
                             peopleAffected,
                             urgency,
                             emergencyLocation,
-                            voiceBase64
+                            voiceBase64,
+                            photoPaths
                         )
 
                         showReportForm = false
@@ -158,6 +172,10 @@ fun AppNavigation(
                             connectedCount = nearbyPeers.count { it.isConnected },
 
                             totalReportsCount = reports.size,
+
+                            recentReports = reports.take(3),
+
+                            rescueUpdates = rescueUpdates,
 
                             onStartNearby = onStartNearby,
 

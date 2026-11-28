@@ -1,5 +1,6 @@
 package com.resqsync.app.database.repository
 
+import android.util.Log
 import com.resqsync.app.database.dao.EmergencyReportDao
 import com.resqsync.app.database.dao.NetworkMessageDao
 import com.resqsync.app.database.entity.toEmergencyReport
@@ -11,6 +12,7 @@ import com.resqsync.app.models.EmergencyReport
 import com.resqsync.app.models.NetworkMessage
 import kotlinx.coroutines.flow.Flow
 import kotlinx.coroutines.flow.map
+import java.io.File
 
 class RoomReportRepository(
     private val emergencyReportDao: EmergencyReportDao,
@@ -64,9 +66,18 @@ class RoomReportRepository(
 
     override suspend fun cleanupExpiredRecords(): Int {
         val now = System.currentTimeMillis()
-        val expiredReports = emergencyReportDao.deleteExpiredReports(now)
+        val expiredReportEntities = emergencyReportDao.getExpiredReports(now)
+        val deletedReports = emergencyReportDao.deleteExpiredReports(now)
+        expiredReportEntities
+            .flatMap { it.toEmergencyReport().localPhotoPaths }
+            .forEach { path ->
+                val photoFile = File(path)
+                if (photoFile.exists() && !photoFile.delete()) {
+                    Log.e("ResQSync", "Failed to remove expired report photo: $path")
+                }
+            }
         val expiredMsgs = networkMessageDao.deleteExpiredMessages(now)
-        return expiredReports + expiredMsgs
+        return deletedReports + expiredMsgs
     }
 
     override fun observeReports(): Flow<List<EmergencyReport>> {

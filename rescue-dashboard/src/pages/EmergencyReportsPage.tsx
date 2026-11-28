@@ -201,7 +201,9 @@ export const EmergencyReportsPage: React.FC = () => {
                     <td className="p-3.5 font-mono text-[11px] text-slate-600">
                       <div className="flex items-center gap-1">
                         <MapPin className="w-3 h-3 text-blue-600 shrink-0" />
-                        <span>{report.latitude ? report.latitude.toFixed(4) : 'N/A'}, {report.longitude ? report.longitude.toFixed(4) : 'N/A'}</span>
+                        <span>
+                          {report.latitude !== null ? report.latitude.toFixed(4) : 'N/A'}, {report.longitude !== null ? report.longitude.toFixed(4) : 'N/A'}
+                        </span>
                       </div>
                     </td>
 

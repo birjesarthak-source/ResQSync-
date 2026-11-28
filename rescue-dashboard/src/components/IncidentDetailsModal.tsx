@@ -206,7 +206,7 @@ export const IncidentDetailsModal: React.FC<IncidentDetailsModalProps> = ({ repo
               <div className="overflow-hidden">
                 <span className="text-[11px] text-slate-500 uppercase font-semibold block">Coordinates</span>
                 <span className="text-xs font-mono font-bold text-slate-800 truncate block">
-                  {report.latitude ? report.latitude.toFixed(4) : 'N/A'}, {report.longitude ? report.longitude.toFixed(4) : 'N/A'}
+                  {report.latitude !== null ? report.latitude.toFixed(4) : 'N/A'}, {report.longitude !== null ? report.longitude.toFixed(4) : 'N/A'}
                 </span>
               </div>
             </div>

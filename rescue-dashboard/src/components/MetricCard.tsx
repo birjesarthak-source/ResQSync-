@@ -61,7 +61,7 @@ export const MetricCard: React.FC<MetricCardProps> = ({
 
   return (
     <div
-      className={`bg-white rounded-xl p-5 border ${styles.border} shadow-xs transition-all hover:shadow-md hover:translate-y-[-2px]`}
+      className={`surface-card p-5 border ${styles.border} transition-all hover:-translate-y-0.5 hover:shadow-md`}
     >
       <div className="flex items-start justify-between">
         <div>

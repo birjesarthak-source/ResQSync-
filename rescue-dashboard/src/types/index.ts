@@ -22,8 +22,8 @@ export interface EmergencyReport {
   reporterDeviceId: string;
   incidentType: IncidentType;
   description: string;
-  latitude: number;
-  longitude: number;
+  latitude: number | null;
+  longitude: number | null;
   urgency: UrgencyLevel;
   peopleAffected: number;
   verificationStatus: VerificationStatus;

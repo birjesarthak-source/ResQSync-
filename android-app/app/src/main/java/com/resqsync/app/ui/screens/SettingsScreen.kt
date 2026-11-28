@@ -1,11 +1,15 @@
 package com.resqsync.app.ui.screens
 
+import androidx.compose.foundation.BorderStroke
 import androidx.compose.foundation.layout.*
+import androidx.compose.foundation.rememberScrollState
 import androidx.compose.foundation.shape.RoundedCornerShape
+import androidx.compose.foundation.verticalScroll
 import androidx.compose.material3.*
 import androidx.compose.runtime.*
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.text.font.FontWeight
+import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.dp
 import com.resqsync.app.ui.theme.ResQSyncEmergencyRed
 import com.resqsync.app.ui.theme.ResQSyncPrimaryBlue
@@ -28,110 +32,122 @@ fun SettingsScreen(
     Column(
         modifier = Modifier
             .fillMaxSize()
-            .padding(18.dp),
-        verticalArrangement = Arrangement.spacedBy(16.dp)
+            .verticalScroll(rememberScrollState())
+            .padding(horizontal = 20.dp, vertical = 18.dp),
+        verticalArrangement = Arrangement.spacedBy(14.dp)
     ) {
         Text(
-            text = "Settings & Preferences",
+            text = "Settings",
             style = MaterialTheme.typography.headlineMedium,
             fontWeight = FontWeight.Bold,
             color = ResQSyncTextDark
         )
+        Text(
+            text = "Manage this device and your app preferences.",
+            style = MaterialTheme.typography.bodyMedium,
+            color = MaterialTheme.colorScheme.onSurfaceVariant
+        )
 
-        Card(
-            modifier = Modifier.fillMaxWidth(),
-            shape = RoundedCornerShape(14.dp),
-            colors = CardDefaults.cardColors(containerColor = MaterialTheme.colorScheme.surface)
+        SettingsSection(
+            title = "This device",
+            description = "Device ID"
         ) {
-            Column(
-                modifier = Modifier.padding(16.dp),
-                verticalArrangement = Arrangement.spacedBy(10.dp)
-            ) {
-                Text(
-                    text = "Device Identification",
-                    style = MaterialTheme.typography.titleMedium,
-                    fontWeight = FontWeight.Bold,
-                    color = ResQSyncPrimaryBlue
-                )
-
-                Text(
-                    text = "Unique Device ID: $deviceId",
-                    style = MaterialTheme.typography.bodySmall,
-                    color = MaterialTheme.colorScheme.onSurfaceVariant
-                )
-            }
+            Text(
+                text = deviceId,
+                modifier = Modifier.fillMaxWidth(),
+                style = MaterialTheme.typography.bodyMedium,
+                color = ResQSyncTextDark,
+                maxLines = 2,
+                overflow = TextOverflow.Ellipsis
+            )
         }
 
-        Card(
-            modifier = Modifier.fillMaxWidth(),
-            shape = RoundedCornerShape(14.dp),
-            colors = CardDefaults.cardColors(containerColor = MaterialTheme.colorScheme.surface)
+        SettingsSection(
+            title = "Appearance",
+            description = "High-contrast dark theme can help conserve battery on OLED screens."
         ) {
-            Column(
-                modifier = Modifier.padding(16.dp),
-                verticalArrangement = Arrangement.spacedBy(10.dp)
+            Row(
+                modifier = Modifier.fillMaxWidth(),
+                horizontalArrangement = Arrangement.spacedBy(8.dp)
             ) {
-                Text(
-                    text = "Display Theme & Battery Saver",
-                    style = MaterialTheme.typography.titleMedium,
-                    fontWeight = FontWeight.Bold,
-                    color = ResQSyncTextDark
-                )
-
-                Text(
-                    text = "High-contrast dark theme reduces OLED screen battery drain during power outages.",
-                    style = MaterialTheme.typography.bodySmall,
-                    color = MaterialTheme.colorScheme.onSurfaceVariant
-                )
-
-                Row(
-                    modifier = Modifier.fillMaxWidth(),
-                    horizontalArrangement = Arrangement.spacedBy(8.dp)
-                ) {
-                    ThemeMode.entries.forEach { mode ->
-                        FilterChip(
-                            selected = selectedTheme == mode,
-                            onClick = { selectedTheme = mode },
-                            label = { Text(mode.name.replace('_', ' ')) },
-                            modifier = Modifier.weight(1f)
-                        )
+                ThemeMode.entries.forEach { mode ->
+                    val label = when (mode) {
+                        ThemeMode.LIGHT -> "Light"
+                        ThemeMode.DARK_HIGH_CONTRAST -> "Dark"
+                        ThemeMode.SYSTEM -> "System"
                     }
+                    FilterChip(
+                        selected = selectedTheme == mode,
+                        onClick = { selectedTheme = mode },
+                        label = {
+                            Text(
+                                text = label,
+                                maxLines = 1,
+                                softWrap = false
+                            )
+                        },
+                        modifier = Modifier.weight(1f)
+                    )
                 }
             }
         }
 
-        Card(
-            modifier = Modifier.fillMaxWidth(),
-            shape = RoundedCornerShape(14.dp),
-            colors = CardDefaults.cardColors(containerColor = MaterialTheme.colorScheme.surface)
+        SettingsSection(
+            title = "Data & sync",
+            description = "Send pending reports or remove expired records from this device."
         ) {
-            Column(
-                modifier = Modifier.padding(16.dp),
-                verticalArrangement = Arrangement.spacedBy(10.dp)
+            Button(
+                onClick = onManualSyncRequested,
+                modifier = Modifier.fillMaxWidth(),
+                shape = RoundedCornerShape(12.dp),
+                colors = ButtonDefaults.buttonColors(containerColor = ResQSyncPrimaryBlue)
             ) {
-                Text(
-                    text = "Cloud Synchronization & Maintenance",
-                    style = MaterialTheme.typography.titleMedium,
-                    fontWeight = FontWeight.Bold,
-                    color = ResQSyncTextDark
-                )
-
-                Button(
-                    onClick = onManualSyncRequested,
-                    modifier = Modifier.fillMaxWidth(),
-                    colors = ButtonDefaults.buttonColors(containerColor = ResQSyncPrimaryBlue)
-                ) {
-                    Text("Trigger Cloud Sync", fontWeight = FontWeight.Bold)
-                }
-
-                OutlinedButton(
-                    onClick = onClearDataRequested,
-                    modifier = Modifier.fillMaxWidth(),
-                    colors = ButtonDefaults.outlinedButtonColors(contentColor = ResQSyncEmergencyRed)
-                ) {
-                    Text("Clear Local Reports & Mesh Cache")
-                }
+                Text("Sync pending reports", fontWeight = FontWeight.SemiBold)
             }
+
+            OutlinedButton(
+                onClick = onClearDataRequested,
+                modifier = Modifier.fillMaxWidth(),
+                shape = RoundedCornerShape(12.dp),
+                colors = ButtonDefaults.outlinedButtonColors(contentColor = ResQSyncEmergencyRed)
+            ) {
+                Text("Remove expired reports", fontWeight = FontWeight.SemiBold)
+            }
+        }
+    }
+}
+
+@Composable
+private fun SettingsSection(
+    title: String,
+    description: String,
+    content: @Composable ColumnScope.() -> Unit
+) {
+    Card(
+        modifier = Modifier.fillMaxWidth(),
+        shape = RoundedCornerShape(16.dp),
+        colors = CardDefaults.cardColors(containerColor = MaterialTheme.colorScheme.surface),
+        border = BorderStroke(1.dp, MaterialTheme.colorScheme.outlineVariant),
+        elevation = CardDefaults.cardElevation(defaultElevation = 1.dp)
+    ) {
+        Column(
+            modifier = Modifier
+                .fillMaxWidth()
+                .padding(16.dp),
+            verticalArrangement = Arrangement.spacedBy(10.dp)
+        ) {
+            Text(
+                text = title,
+                style = MaterialTheme.typography.titleMedium,
+                fontWeight = FontWeight.Bold,
+                color = ResQSyncTextDark
+            )
+            Text(
+                text = description,
+                style = MaterialTheme.typography.bodySmall,
+                color = MaterialTheme.colorScheme.onSurfaceVariant
+            )
+            content()
         }
     }
 }

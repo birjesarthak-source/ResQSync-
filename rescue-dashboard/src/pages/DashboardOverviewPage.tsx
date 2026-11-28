@@ -21,21 +21,23 @@ export const DashboardOverviewPage: React.FC = () => {
   const [modalReport, setModalReport] = useState<EmergencyReport | null>(null);
 
   const activeIncidents = reports.filter((r) => r.status !== 'RESOLVED');
-  const criticalCount = reports.filter((r) => r.urgency === 'CRITICAL' && r.status !== 'RESOLVED').length;
-  const totalVictims = reports.reduce((acc, r) => acc + (r.status !== 'RESOLVED' ? r.peopleAffected : 0), 0);
+  const newReportCount = reports.filter((r) => r.status === 'NEW').length;
+  const verificationCount = reports.filter((r) =>
+    r.verificationStatus === 'UNVERIFIED' || r.verificationStatus === 'DISPUTED'
+  ).length;
   const activeTeams = teams.filter((t) => t.status === 'DISPATCHED' || t.status === 'ON_SITE').length;
 
   return (
     <div className="space-y-6">
       {/* Page Header */}
-      <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4 pb-2 border-b border-slate-200">
+      <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4">
         <div>
-          <h1 className="text-2xl font-extrabold text-slate-800 tracking-wide flex items-center gap-2">
-            Disaster Command Overview
-            <span className="w-2.5 h-2.5 rounded-full bg-blue-600 animate-pulse" />
+          <p className="text-sm font-semibold text-blue-600 mb-1">Command dashboard</p>
+          <h1 className="page-heading">
+            Emergency overview
           </h1>
-          <p className="text-xs text-slate-500 mt-0.5">
-            Real-time emergency report aggregation from offline smartphone mesh networks
+          <p className="text-sm text-slate-500 mt-1.5">
+            Live reports, response activity, and field operations
           </p>
         </div>
 
@@ -53,7 +55,7 @@ export const DashboardOverviewPage: React.FC = () => {
       {/* Key Operational Metric Cards */}
       <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4">
         <MetricCard
-          title="Active Emergencies"
+          title="Active emergencies"
           value={activeIncidents.length}
           subtitle="Awaiting resolution"
           icon={AlertTriangle}
@@ -61,17 +63,17 @@ export const DashboardOverviewPage: React.FC = () => {
           trend={{ label: 'Active in field' }}
         />
         <MetricCard
-          title="Critical Alarms"
-          value={criticalCount}
-          subtitle="Immediate dispatch needed"
+          title="New reports"
+          value={newReportCount}
+          subtitle="Received and awaiting review"
           icon={ShieldAlert}
           variant="red"
-          trend={{ label: 'High priority' }}
+          trend={{ label: 'New activity' }}
         />
         <MetricCard
-          title="Victims At Risk"
-          value={totalVictims}
-          subtitle="Across active zones"
+          title="Needs verification"
+          value={verificationCount}
+          subtitle="Requires coordinator review"
           icon={Users}
           variant="amber"
           trend={{ label: 'Reported count' }}
@@ -126,7 +128,11 @@ export const DashboardOverviewPage: React.FC = () => {
                     <div className="text-right shrink-0 text-xs text-slate-500 font-mono space-y-0.5">
                       <div className="flex items-center justify-end gap-1 text-slate-700">
                         <MapPin className="w-3 h-3 text-blue-600" />
-                        <span>{report.latitude.toFixed(4)}, {report.longitude.toFixed(4)}</span>
+                        <span>
+                          {report.latitude !== null && report.longitude !== null
+                            ? `${report.latitude.toFixed(4)}, ${report.longitude.toFixed(4)}`
+                            : 'Location unavailable'}
+                        </span>
                       </div>
                       <div>{formatDate(report.createdAt)}</div>
                     </div>

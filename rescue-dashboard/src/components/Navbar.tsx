@@ -16,7 +16,7 @@ export const Navbar: React.FC<NavbarProps> = ({ onOpenMobileMenu }) => {
   const activeCount = reports.filter((r) => r.status !== 'RESOLVED').length;
 
   return (
-    <header className="h-16 bg-white border-b border-slate-200 px-4 lg:px-6 flex items-center justify-between sticky top-0 z-30 shadow-sm">
+    <header className="h-20 bg-white/95 backdrop-blur border-b border-slate-200/80 px-4 lg:px-6 flex items-center justify-between sticky top-0 z-30">
       {/* Left: Mobile Toggle & Section Name */}
       <div className="flex items-center gap-3">
         <button
@@ -27,9 +27,9 @@ export const Navbar: React.FC<NavbarProps> = ({ onOpenMobileMenu }) => {
           <Menu className="w-5 h-5" />
         </button>
 
-        <div className="hidden sm:flex items-center gap-2 text-xs font-mono">
-          <span className="w-2.5 h-2.5 rounded-full bg-emerald-500 animate-ping" />
-          <span className="text-blue-600 font-bold tracking-wider">OFF-GRID MESH PROTOCOL: ACTIVE</span>
+        <div className="hidden sm:flex items-center gap-2 text-xs">
+          <span className="w-2 h-2 rounded-full bg-emerald-500" />
+          <span className="text-emerald-700 font-semibold">System connected</span>
         </div>
       </div>
 

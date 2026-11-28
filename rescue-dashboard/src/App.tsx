@@ -8,10 +8,6 @@ import { LoginPage } from './pages/LoginPage';
 import { DashboardOverviewPage } from './pages/DashboardOverviewPage';
 import { EmergencyReportsPage } from './pages/EmergencyReportsPage';
 import { IncidentMapPage } from './pages/IncidentMapPage';
-import { KanbanDispatchBoard } from './pages/KanbanDispatchBoard';
-import { AnalyticsPage } from './pages/AnalyticsPage';
-import { RescueUpdatesPage } from './pages/RescueUpdatesPage';
-import { NetworkMonitoringPage } from './pages/NetworkMonitoringPage';
 import { TeamManagementPage } from './pages/TeamManagementPage';
 import { SettingsPage } from './pages/SettingsPage';
 
@@ -29,12 +25,12 @@ export const App: React.FC = () => {
               <Route index element={<DashboardOverviewPage />} />
               <Route path="reports" element={<EmergencyReportsPage />} />
               <Route path="map" element={<IncidentMapPage />} />
-              <Route path="dispatch" element={<KanbanDispatchBoard />} />
-              <Route path="analytics" element={<AnalyticsPage />} />
-              <Route path="updates" element={<RescueUpdatesPage />} />
-              <Route path="network" element={<NetworkMonitoringPage />} />
               <Route path="teams" element={<TeamManagementPage />} />
               <Route path="settings" element={<SettingsPage />} />
+              <Route path="dispatch" element={<Navigate to="/teams" replace />} />
+              <Route path="analytics" element={<Navigate to="/" replace />} />
+              <Route path="updates" element={<Navigate to="/" replace />} />
+              <Route path="network" element={<Navigate to="/settings" replace />} />
             </Route>
 
             {/* Fallback */}

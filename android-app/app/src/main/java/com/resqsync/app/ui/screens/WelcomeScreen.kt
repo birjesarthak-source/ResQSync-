@@ -21,9 +21,9 @@ import androidx.compose.ui.unit.sp
 fun WelcomeScreen(
     onGetStarted: () -> Unit
 ) {
-    val darkBlue = Color(0xFF071827)
-    val cyan = Color(0xFF00C5D2)
-    val red = Color(0xFFB42318)
+    val darkBlue = Color(0xFF0F172A)
+    val blue = Color(0xFF2563EB)
+    val red = Color(0xFFDC2626)
 
     Box(
         modifier = Modifier
@@ -31,9 +31,9 @@ fun WelcomeScreen(
             .background(
                 Brush.verticalGradient(
                     listOf(
-                        Color(0xFF102D46),
-                        darkBlue,
-                        Color(0xFF04101D)
+                    Color(0xFF1E3A5F),
+                    Color(0xFF162B46),
+                    darkBlue
                     )
                 )
             )
@@ -82,7 +82,7 @@ fun WelcomeScreen(
 
                 Text(
                     text = "DECENTRALIZED DISASTER COMMUNICATION",
-                    color = cyan,
+                    color = blue,
                     fontSize = 11.sp,
                     fontWeight = FontWeight.Bold,
                     textAlign = TextAlign.Center
@@ -125,12 +125,12 @@ fun WelcomeScreen(
                         .height(58.dp),
                     shape = RoundedCornerShape(18.dp),
                     colors = ButtonDefaults.buttonColors(
-                        containerColor = cyan
+                        containerColor = blue
                     )
                 ) {
                     Text(
                         text = "Get Started  →",
-                        color = darkBlue,
+                        color = Color.White,
                         fontSize = 18.sp,
                         fontWeight = FontWeight.Bold
                     )

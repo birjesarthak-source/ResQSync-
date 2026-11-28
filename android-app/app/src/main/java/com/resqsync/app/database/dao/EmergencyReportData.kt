@@ -43,6 +43,9 @@ interface EmergencyReportDao {
     @Query("DELETE FROM emergency_reports WHERE expiresAt <= :currentTime")
     suspend fun deleteExpiredReports(currentTime: Long): Int
 
+    @Query("SELECT * FROM emergency_reports WHERE expiresAt <= :currentTime")
+    suspend fun getExpiredReports(currentTime: Long): List<EmergencyReportEntity>
+
     @Query("DELETE FROM emergency_reports")
     suspend fun deleteAllReports()
 }

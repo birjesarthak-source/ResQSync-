@@ -7,6 +7,12 @@
 import { supabase } from '../lib/supabaseClient';
 import { EmergencyReport, NetworkMessage, MeshPeerNode, IncidentType, UrgencyLevel, VerificationStatus } from '../types';
 
+const parseCoordinate = (value: unknown, min: number, max: number): number | null => {
+  if (value === null || value === undefined || value === '') return null;
+  const parsed = typeof value === 'number' ? value : Number(value);
+  return Number.isFinite(parsed) && parsed >= min && parsed <= max ? parsed : null;
+};
+
 /**
  * Maps a raw PostgreSQL row from 'public.emergency_reports' to the frontend EmergencyReport model.
  */
@@ -22,8 +28,8 @@ export const mapRowToEmergencyReport = (row: any): EmergencyReport => {
     reporterDeviceId: row.reporter_device_id || 'unknown-device',
     incidentType: (row.incident_type as IncidentType) || 'OTHER',
     description: row.description || '',
-    latitude: typeof row.latitude === 'number' ? row.latitude : 18.5204,
-    longitude: typeof row.longitude === 'number' ? row.longitude : 73.8567,
+    latitude: parseCoordinate(row.latitude, -90, 90),
+    longitude: parseCoordinate(row.longitude, -180, 180),
     urgency: (row.urgency as UrgencyLevel) || 'MEDIUM',
     peopleAffected: typeof row.people_affected === 'number' ? row.people_affected : 0,
     verificationStatus: (row.verification_status as VerificationStatus) || 'UNVERIFIED',
@@ -99,6 +105,33 @@ export interface FetchResult<T> {
 }
 
 export const incidentService = {
+  async updateReportCoordinates(
+    reportId: string,
+    latitude: number,
+    longitude: number
+  ): Promise<{ error: string | null }> {
+    if (!supabase) {
+      return { error: 'Supabase is not configured; coordinates were not saved.' };
+    }
+
+    try {
+      const { data, error } = await supabase
+        .from('emergency_reports')
+        .update({ latitude, longitude })
+        .eq('report_id', reportId)
+        .select('report_id')
+        .maybeSingle();
+
+      if (error) return { error: error.message };
+      if (!data) return { error: 'The report was not found or you do not have permission to update it.' };
+      return { error: null };
+    } catch (error) {
+      return {
+        error: error instanceof Error ? error.message : 'Coordinates could not be saved.'
+      };
+    }
+  },
+
   /**
    * Reads all emergency reports from public.emergency_reports ordered by created_at DESC.
    */
